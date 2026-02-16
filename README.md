@@ -3,12 +3,12 @@
 ## 📖 About the Project
 **Decorator** is a cozy, static puzzle game where creativity meets logic. You play as a tiny interior designer who furnishes unusual micro-houses (like an old shoe, a vintage teapot, or a tree hollow) using adorable stickers. 
 
-It's not just a sandbox decoration game—it's a spatial logic puzzle. Each resident has specific, quirky needs. For example, a tiny mouse might say: *"I love reading by the window, but I'm afraid of drafts."* To win, you must figure out the logical placement of the stickers (e.g., place the armchair near the window, but block the draft with a bookshelf, and put a blanket on the chair). 
+It's not just a sandbox decoration game - it's a spatial logic puzzle. Each resident has specific, quirky needs. For example, a tiny mouse might say: *"I love reading by the window, but I'm afraid of drafts."* To win, you must figure out the logical placement of the stickers (e.g., place the armchair near the window, but block the draft with a bookshelf, and put a blanket on the chair). 
 
 ## 👯‍♀️ Meet the Team
 We share the responsibilities as we learn the entire game development process together.
-* **Kamaliia Alisheva** — Game Designer / 2D Artist / Developer
-* **Mariia Fadeeva** — Game Designer / 2D Artist / Developer
+* **Kamaliia Alisheva** - Game Designer / 2D Artist / Developer
+* **Mariia Fadeeva** - Game Designer / 2D Artist / Developer
 
 ## 🛠 Tech Stack
 **Status: Exploring and Learning! 🚀**
@@ -28,6 +28,12 @@ Our game is built on a satisfying loop of solving, earning, and unlocking.
 * **REWARD:** The logical puzzle is solved! The room comes to life with cozy, subtle animations. The cute resident moves in and looks happy. You are rewarded with a new themed sticker pack (e.g., "Vintage Library Pack").
 * **EXPANSION:** A new, slightly more complex location is unlocked on the world map (e.g., an Old Boot with two floors). 
 * *(Loop continues...)*
+
+## References
+[Illustration 1](https://github.com/Kamaliia-Masha/decorator/blob/main/references/photo_2026-02-16%2013.09.42.jpeg)
+[Illustration 2](https://github.com/Kamaliia-Masha/decorator/blob/main/references/photo_2026-02-16%2013.09.47.jpeg)
+[Illustration 3](https://github.com/Kamaliia-Masha/decorator/blob/main/references/photo_2026-02-16%2013.09.50.jpeg)
+[Illustration 4](https://github.com/Kamaliia-Masha/decorator/blob/main/references/photo_2026-02-16%2013.15.37.jpeg)
 
 ## Game Vibe
 * **Keywords:** Cozy, static, meditative, cute, logical, puzzle, hidden patterns.
