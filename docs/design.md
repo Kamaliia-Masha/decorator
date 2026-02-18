@@ -131,11 +131,11 @@ The expanded version builds on the Basic 4 and adds depth, variety, and progress
 
 ## 📚 References
 <img width="1000" height="562" alt="image" src="https://github.com/user-attachments/assets/d6277d9d-e9fb-4096-a867-b0932923fff8" />
+<img width="1704" height="1170" alt="image" src="https://github.com/user-attachments/assets/40fe73bd-79f6-407e-9da5-cdfaf877f73b" />
+<img width="1022" height="1022" alt="image" src="https://github.com/user-attachments/assets/0ea77167-204a-4e0c-843b-0226e2059f90" />
+<img width="395" height="296" alt="image" src="https://github.com/user-attachments/assets/b05f2a00-d7a7-478c-a6c6-0b13358fd44b" />
 
-Illustration 1  
-Illustration 2  
-Illustration 3  
-Illustration 4  
+ 
 
 ### Game References / Inspiration
 
