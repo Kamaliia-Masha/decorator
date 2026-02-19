@@ -1,0 +1,15 @@
+/Users/Mariia.Fadeeva/RiderProjects/decorator/obj/Debug/net9.0/DecoratorGame.GeneratedMSBuildEditorConfig.editorconfig
+/Users/Mariia.Fadeeva/RiderProjects/decorator/obj/Debug/net9.0/DecoratorGame.AssemblyInfoInputs.cache
+/Users/Mariia.Fadeeva/RiderProjects/decorator/obj/Debug/net9.0/DecoratorGame.AssemblyInfo.cs
+/Users/Mariia.Fadeeva/RiderProjects/decorator/obj/Debug/net9.0/DecoratorGame.csproj.CoreCompileInputs.cache
+/Users/Mariia.Fadeeva/RiderProjects/decorator/obj/Debug/net9.0/DecoratorGame.sourcelink.json
+/Users/Mariia.Fadeeva/RiderProjects/decorator/bin/Debug/net9.0/DecoratorGame
+/Users/Mariia.Fadeeva/RiderProjects/decorator/bin/Debug/net9.0/DecoratorGame.deps.json
+/Users/Mariia.Fadeeva/RiderProjects/decorator/bin/Debug/net9.0/DecoratorGame.runtimeconfig.json
+/Users/Mariia.Fadeeva/RiderProjects/decorator/bin/Debug/net9.0/DecoratorGame.dll
+/Users/Mariia.Fadeeva/RiderProjects/decorator/bin/Debug/net9.0/DecoratorGame.pdb
+/Users/Mariia.Fadeeva/RiderProjects/decorator/obj/Debug/net9.0/DecoratorGame.dll
+/Users/Mariia.Fadeeva/RiderProjects/decorator/obj/Debug/net9.0/refint/DecoratorGame.dll
+/Users/Mariia.Fadeeva/RiderProjects/decorator/obj/Debug/net9.0/DecoratorGame.pdb
+/Users/Mariia.Fadeeva/RiderProjects/decorator/obj/Debug/net9.0/DecoratorGame.genruntimeconfig.cache
+/Users/Mariia.Fadeeva/RiderProjects/decorator/obj/Debug/net9.0/ref/DecoratorGame.dll
