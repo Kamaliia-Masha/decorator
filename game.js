@@ -17,7 +17,12 @@ class BriefingScene extends Phaser.Scene {
 
     init(data) {
         this.result = data.result || null; // 'success', 'failure' or null
-        this.isAwaitingReview = data.awaitingReview || false;
+    }
+
+    preload() {
+        // Загружаем персонажа-кролика и фон агентства
+        this.load.image('rabbit', 'assets/rabbit.png');
+        this.load.image('agency_bg', 'assets/agency.png');
     }
 
     create() {
@@ -25,14 +30,16 @@ class BriefingScene extends Phaser.Scene {
             document.getElementById('ui-panel').style.display = 'none';
         }
 
-        // Background: Agency Lobby
-        this.add.rectangle(400, 250, 800, 500, 0xfdf6e3); // Floor
-        this.add.rectangle(400, 150, 800, 300, 0xf5ead2); // Wall
+        // Background: Используем добавленный фон агентства
+        const bg = this.add.image(400, 250, 'agency_bg');
+        bg.setDisplaySize(800, 500);
+        bg.setDepth(0);
         
         // Agency Counter
         const counter = this.add.rectangle(400, 420, 600, 100, 0x8b7355);
         counter.setStrokeStyle(4, 0x5f4b32);
-        this.add.text(400, 420, 'DECOR AGENCY', { color: '#fff', fontSize: '24px', fontWeight: 'bold' }).setOrigin(0.5);
+        counter.setDepth(10); // Стойка должна быть ВЫШЕ персонажа
+        this.add.text(400, 420, 'DECOR AGENCY', { color: '#fff', fontSize: '24px', fontWeight: 'bold' }).setOrigin(0.5).setDepth(11);
 
         // Tip Jar
         this.tipJar = this.add.container(650, 370);
@@ -40,32 +47,31 @@ class BriefingScene extends Phaser.Scene {
         jar.setStrokeStyle(2, 0x5f4b32);
         const jarLabel = this.add.text(0, 20, 'TIPS', { color: '#5f4b32', fontSize: '12px', fontWeight: 'bold' }).setOrigin(0.5);
         this.tipJar.add([jar, jarLabel]);
+        this.tipJar.setDepth(15); // Ставим НА стол
 
         // Cash Register
         this.register = this.add.container(150, 370);
         const reg = this.add.rectangle(0, 0, 70, 50, 0x333);
         const regLabel = this.add.text(0, 0, 'CASH', { color: '#fff', fontSize: '10px' }).setOrigin(0.5);
         this.register.add([reg, regLabel]);
+        this.register.setDepth(15); // Ставим НА стол
 
         // Character (Resident)
-        const startX = (this.result || this.isAwaitingReview) ? 400 : -100;
+        const startX = this.result ? 450 : -100; // Если есть результат, сразу стоит у стола
         const characterContainer = this.add.container(startX, 320);
-        const color = this.result === 'failure' ? 0x888888 : 0xf18c8e;
-        const body = this.add.circle(0, 0, 50, color);
-        body.setStrokeStyle(3, 0x5f4b32);
-        const head = this.add.circle(0, -60, 30, color);
-        head.setStrokeStyle(3, 0x5f4b32);
         
-        // Face
-        let faceText = "• _ •";
-        if (this.result && !this.isAwaitingReview) {
-            if (this.result === 'success') faceText = "^ _ ^";
-            if (this.result === 'failure') faceText = "T _ T";
+        // Используем спрайт кролика вместо кружков
+        const rabbit = this.add.image(0, 50, 'rabbit'); // Опустим кролика чуть ниже в контейнере
+        rabbit.setScale(0.5); 
+        
+        if (this.result === 'failure') {
+            rabbit.setTint(0x888888); 
         }
-        this.characterFace = this.add.text(0, -65, faceText, { color: '#000', fontSize: '20px', fontWeight: 'bold' }).setOrigin(0.5);
         
-        const nameLabel = this.add.text(0, 70, currentCommission.residentName, { color: '#5f4b32', fontSize: '18px', fontWeight: 'bold' }).setOrigin(0.5);
-        characterContainer.add([body, head, this.characterFace, nameLabel]);
+        characterContainer.add([rabbit]);
+        characterContainer.setDepth(5); // Персонаж НИЖЕ стойки
+        
+        this.characterSprite = rabbit; // Сохраняем ссылку для анимации
 
         // Speech Bubble Group
         this.bubbleGroup = this.add.group();
@@ -84,29 +90,26 @@ class BriefingScene extends Phaser.Scene {
         bubble.strokePath();
 
         let message = currentCommission.brief;
-        if (this.isAwaitingReview) message = "Вы закончили? Покажите, что у вас получилось!";
-        else if (this.result === 'success') message = "Это просто великолепно! Вот ваши чаевые!";
+        if (this.result === 'success') message = "Это просто великолепно! Вот ваши чаевые!";
         else if (this.result === 'failure') message = "Ужасно... Я забираю свои деньги назад!";
 
-        this.speechText = this.add.text(375, 110, message, {
+        this.speechText = this.add.text(375, 105, message, {
             color: '#5f4b32',
             fontSize: '16px',
             wordWrap: { width: 350 }
         });
 
-        // Buttons
-        const btnBg = this.add.rectangle(550, 320, 180, 45, 0x8fb9a8).setInteractive({ useHandCursor: true });
-        let btnLabel = 'ПРИНЯТЬ';
-        if (this.isAwaitingReview) btnLabel = 'ПРОВЕРИТЬ';
-        if (this.result) btnLabel = 'ДАЛЕЕ';
+        // Buttons (ВНУТРИ ОБЛАКА)
+        const btnBg = this.add.rectangle(550, 225, 180, 45, 0x8fb9a8).setInteractive({ useHandCursor: true });
+        let btnLabel = this.result ? 'ДАЛЕЕ' : 'ПРИНЯТЬ';
         
-        const btnText = this.add.text(550, 320, btnLabel, { color: '#fff', fontSize: '16px', fontWeight: 'bold' }).setOrigin(0.5);
+        const btnText = this.add.text(550, 225, btnLabel, { color: '#fff', fontSize: '16px', fontWeight: 'bold' }).setOrigin(0.5);
         
         this.bubbleGroup.addMultiple([bubble, this.speechText, btnBg, btnText]);
         this.bubbleGroup.setVisible(false);
 
-        if (!this.result && !this.isAwaitingReview) {
-            // Animation: Character walking in
+        if (!this.result) {
+            // Animation: Character walking in (New Commission)
             this.tweens.add({
                 targets: characterContainer,
                 x: 450, 
@@ -115,14 +118,9 @@ class BriefingScene extends Phaser.Scene {
                 onComplete: () => this.bubbleGroup.setVisible(true)
             });
         } else {
-            // Immediately show feedback or prompt to check
-            if (this.isAwaitingReview) {
-                characterContainer.setX(450); 
-            }
+            // Сразу показываем результат (Return from Design)
             this.bubbleGroup.setVisible(true);
-            if (this.result && !this.isAwaitingReview) {
-                this.handleEconomyAnimation(this.result, characterContainer);
-            }
+            this.handleEconomyAnimation(this.result, characterContainer);
         }
 
         btnBg.on('pointerdown', () => {
@@ -144,23 +142,20 @@ class BriefingScene extends Phaser.Scene {
     }
 
     handleReview(character) {
-        // Show reaction directly without paper
+        // Show reaction directly
         if (this.result === 'success') {
-            this.characterFace.setText("^ _ ^");
             this.speechText.setText("Это просто великолепно! Вот ваши чаевые!");
         } else {
-            this.characterFace.setText("T _ T");
             this.speechText.setText("Ужасно... Я забираю свои деньги назад!");
-            character.getAt(0).setFillStyle(0x888888); // Change body color to grey
-            character.getAt(1).setFillStyle(0x888888); // Change head color to grey
+            if (this.characterSprite) this.characterSprite.setTint(0x888888); 
         }
 
         this.handleEconomyAnimation(this.result, character);
         
-        // Show "CONTINUE" button after a short delay
+        // Show "CONTINUE" button after a short delay inside the bubble
         this.time.delayedCall(500, () => {
-            const continueBtnBg = this.add.rectangle(550, 320, 180, 45, 0x8fb9a8).setInteractive({ useHandCursor: true });
-            const continueBtnText = this.add.text(550, 320, 'ДАЛЕЕ', { color: '#fff', fontSize: '16px', fontWeight: 'bold' }).setOrigin(0.5);
+            const continueBtnBg = this.add.rectangle(550, 225, 180, 45, 0x8fb9a8).setInteractive({ useHandCursor: true });
+            const continueBtnText = this.add.text(550, 225, 'ДАЛЕЕ', { color: '#fff', fontSize: '16px', fontWeight: 'bold' }).setOrigin(0.5);
             this.bubbleGroup.addMultiple([continueBtnBg, continueBtnText]);
 
             continueBtnBg.on('pointerdown', () => {
@@ -172,6 +167,7 @@ class BriefingScene extends Phaser.Scene {
     handleEconomyAnimation(result, character) {
         const coin = this.add.circle(character.x, character.y - 20, 10, 0xffd700);
         coin.setStrokeStyle(2, 0x5f4b32);
+        coin.setDepth(20); // Монета должна лететь ПОВЕРХ всего
         
         if (result === 'success') {
             this.tweens.add({
@@ -266,8 +262,8 @@ class DesignScene extends Phaser.Scene {
                 document.getElementById('currency-display').innerText = `Валюта: ${currency}`;
             }
 
-            // Переход в холл для передачи бумажки
-            this.scene.start('BriefingScene', { result: result, awaitingReview: true });
+            // Переход в холл со СРАЗУ видимым результатом
+            this.scene.start('BriefingScene', { result: result });
         };
     }
 
