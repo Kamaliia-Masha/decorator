@@ -7,15 +7,28 @@
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background: #fdf6e3; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #5f4b32; }
-        #game-container { border: 4px solid #8b7355; margin-top: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
-        #ui-panel { width: 800px; padding: 20px; background: #fff; border: 2px solid #e6d5c3; margin-top: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: none; }
+        #game-container { 
+            border: 4px solid #8b7355; 
+            margin-top: 10px; 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1); 
+            border-radius: 8px; 
+            overflow: hidden; 
+            width: 800px;
+            height: 500px;
+            background-color: #fdf6e3;
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+        }
+        #ui-panel { width: 800px; max-width: 95vw; padding: 20px; background: #fff; border: 2px solid #e6d5c3; margin-top: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: none; }
         .btn { padding: 10px 20px; cursor: pointer; background: #8fb9a8; color: white; border: none; border-radius: 6px; margin: 5px; font-weight: bold; transition: background 0.2s; }
         .btn:hover { background: #7aa895; }
         .btn-submit { background: #f18c8e; }
         .btn-submit:hover { background: #e07b7d; }
         #commission-brief { background: #fefcf0; border-left: 6px solid #f18c8e; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
         #feedback { margin-top: 15px; font-size: 1.1em; text-align: center; min-height: 1.5em; }
-        .hidden { display: none !important; }
+        canvas { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: none !important; }
     </style>
 </head>
 <body>
@@ -29,8 +42,11 @@
         <div id="inventory">
             <strong>Add items:</strong>
             <button class="btn" onclick="window.addFurniture('Plant')">Add Plant</button>
-            <button class="btn" onclick="window.addFurniture('Lamp')">Add Lamp</button>
             <button class="btn" onclick="window.addFurniture('Table')">Add Table</button>
+            <button class="btn" onclick="window.addFurniture('Bed')">Add Bed</button>
+            <button class="btn" onclick="window.addFurniture('Chair')">Add Chair</button>
+            <button class="btn" onclick="window.addFurniture('Closet')">Add Closet</button>
+            <button class="btn" onclick="window.addFurniture('Lamp')">Add Lamp</button>
         </div>
         <div id="controls">
             <button id="submit-btn" class="btn btn-submit" onclick="window.submitGame()">Submit Work</button>

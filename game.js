@@ -203,26 +203,33 @@ class DesignScene extends Phaser.Scene {
     }
 
     preload() {
-        // Загружаем шаблон комнаты
-        this.load.image('room_bg', 'assets/shablonKomnati.png');
+        // Загружаем шаблон комнаты (добавляем версию для сброса кэша)
+        const version = Date.now();
+        this.load.image('room_bg', 'assets/shablonKomnati.png?v=' + version);
         
-        // Здесь можно загрузить свои красивые ассеты мебели
-        // this.load.image('old_chair', 'assets/old_chair.png');
-        // this.load.image('dusty_table', 'assets/dusty_table.png');
-        // this.load.image('plant', 'assets/plant.png');
-        // this.load.image('lamp', 'assets/lamp.png');
-        // this.load.image('single_bed', 'assets/single_bed.png');
+        // Загружаем новую мебель
+        this.load.image('bed', 'assets/bed.png?v=' + version);
+        this.load.image('chair', 'assets/chair.png?v=' + version);
+        this.load.image('closet', 'assets/closet.png?v=' + version);
+        this.load.image('plant', 'assets/plant.png?v=' + version);
+        this.load.image('table', 'assets/table.png?v=' + version);
     }
 
     create() {
         furnitureItems = []; // Reset items
         if (document.getElementById('ui-panel')) {
             document.getElementById('ui-panel').style.display = 'block';
+            // Устанавливаем фон комнаты через CSS для 100% стабильности
+            const container = document.getElementById('game-container');
+            container.style.backgroundImage = `url('assets/shablonKomnati.png?v=${Date.now()}')`;
         }
         
-        // Background: Используем добавленный шаблон комнаты
-        const bg = this.add.image(400, 250, 'room_bg');
-        bg.setDisplaySize(800, 500); // Растягиваем на всё игровое поле
+        // В самом Phaser фон больше не создаем, чтобы он не мог двигаться
+        this.bg = null;
+        
+        // Блокируем любые изменения масштаба или позиции камеры
+        this.cameras.main.setZoom(1);
+        this.cameras.main.centerOn(400, 250);
 
         this.add.text(10, 10, 'Комната: Дизайн-проект', { 
             color: '#5f4b32', 
@@ -230,12 +237,10 @@ class DesignScene extends Phaser.Scene {
             fontWeight: 'bold',
             backgroundColor: '#ffffff88',
             padding: { x: 10, y: 5 }
-        });
+        }).setDepth(100);
 
-        // Initial furniture
-        this.addFurnitureObject(150, 200, 'Old Chair', 0x8b7355);
-        this.addFurnitureObject(300, 300, 'Dusty Table', 0xdeb887);
-        this.addFurnitureObject(600, 150, 'Single Bed', 0xadd8e6);
+        // Изначально пустая комната (кроме одного "Старого стула", который просят удалить в текущем задании)
+        this.addFurnitureObject(250, 300, 'Old Chair', 0x8b7355);
 
         this.updateUI();
 
@@ -244,6 +249,9 @@ class DesignScene extends Phaser.Scene {
             if (type === 'Plant') color = 0x228B22;
             if (type === 'Lamp') color = 0xFFFF00;
             if (type === 'Table') color = 0xdeb887;
+            if (type === 'Bed') color = 0xadd8e6;
+            if (type === 'Chair') color = 0x8b7355;
+            if (type === 'Closet') color = 0x6b4226;
             this.addFurnitureObject(400, 250, type, color);
         };
 
@@ -267,23 +275,37 @@ class DesignScene extends Phaser.Scene {
         };
     }
 
+    update() {
+        // Фоновая картинка теперь в CSS, здесь ничего не нужно фиксировать
+    }
+
     addFurnitureObject(x, y, name, color) {
         const container = this.add.container(x, y);
         
-        // Выбор визуала: Спрайт (если загружен) или Фигура (заглушка)
-        let visual;
-        const textureKey = name.toLowerCase().replace(' ', '_');
+        // Поиск текстуры (сначала точное совпадение, потом по ключевому слову)
+        let textureKey = name.toLowerCase().replace(' ', '_');
+        if (!this.textures.exists(textureKey)) {
+            if (textureKey.includes('chair')) textureKey = 'chair';
+            else if (textureKey.includes('bed')) textureKey = 'bed';
+            else if (textureKey.includes('table')) textureKey = 'table';
+            else if (textureKey.includes('plant')) textureKey = 'plant';
+            else if (textureKey.includes('closet')) textureKey = 'closet';
+        }
         
+        let visual;
         if (this.textures.exists(textureKey)) {
             visual = this.add.image(0, 0, textureKey);
-            // Масштабируем до разумных пределов, если нужно
-            visual.setDisplaySize(100, 100);
+            // Уменьшаем лимит размера, чтобы мебель была соразмерна комнате
+            const maxDim = 220; 
+            if (visual.width > maxDim || visual.height > maxDim) {
+                const scale = maxDim / Math.max(visual.width, visual.height);
+                visual.setScale(scale);
+            }
         } else {
             // Заглушка, если картинки нет
             visual = this.add.rectangle(0, 0, 80, 80, color);
             visual.setStrokeStyle(3, 0x5f4b32);
             
-            // Добавляем иконку-символ для красоты
             let symbol = "";
             if (name.includes("Chair")) symbol = "🪑";
             if (name.includes("Table")) symbol = "Table";
@@ -295,14 +317,13 @@ class DesignScene extends Phaser.Scene {
                 const icon = this.add.text(0, 0, symbol, { fontSize: '32px' }).setOrigin(0.5);
                 container.add(icon);
             }
+
+            const label = this.add.text(0, 55, name, { fontSize: '14px', color: '#5f4b32', fontWeight: 'bold', backgroundColor: '#ffffff88' }).setOrigin(0.5);
+            container.add(label);
         }
         
-        const label = this.add.text(0, 55, name, { fontSize: '14px', color: '#5f4b32', fontWeight: 'bold', backgroundColor: '#ffffff88' }).setOrigin(0.5);
-        
         container.addAt(visual, 0);
-        container.add(label);
-        
-        container.setSize(80, 80);
+        container.setSize(visual.width * (visual.scaleX || 1), visual.height * (visual.scaleY || 1));
         container.setInteractive({ draggable: true });
         container.name = name;
 
@@ -346,7 +367,7 @@ const config = {
     width: 800,
     height: 500,
     parent: 'game-container',
-    backgroundColor: '#fdf6e3',
+    transparent: true, // Делаем Phaser прозрачным, чтобы видеть CSS-фон
     scene: [BriefingScene, DesignScene]
 };
 
