@@ -127,6 +127,54 @@ The expanded version builds on the Basic 4 and adds depth, variety, and progress
 - Unlock progression screen  
 - Different currency reward
 
+## 📈 Difficulty Curve & Progression
+
+Decorator is a **cozy** game, so the difficulty curve is intentionally very soft, almost flat-linear, with gentle increases.  
+The goal is never to gradually open up more creative possibilities and make every new commission feel a little richer and more rewarding than the last.
+
+### How difficulty grows (Difficulty Curve)
+
+- **Early commissions** (first 5–10 tasks)  
+  Very simple requests: “remove the old sofa”, “place a table by the window”, “add one plant”.  
+  Small rooms with 4–6 furniture items, only 1-2 categories available, extremely clear and concrete instructions.  
+  Practically impossible to “fail”.
+
+- **Mid-stage** (after unlocking the first new rooms and floors and 2 thematic sets)  
+  Requests become a bit more open: “make it feel cozy and warm”, “give me a forest vibe”, “bring more light and air into the space”.  
+  Rooms grow slightly larger, 2–3 variations per category appear → players start thinking about color harmony, balance, and basic composition.  
+  Rewards begin to scale subtly depending on vibe match, but feedback stays kind.
+
+- **Late stage** (after unlocking several thematic sets and more advanced locations)  
+  Briefs turn open-ended and layered: “blend modern with vintage accents”, “combine minimalism and boho”, “create ultimate coziness in a very tiny awkward space”.  
+  Rooms become bigger or more challenging in shape (15+ objects, unusual layouts).  
+  Many more furniture variations and full thematic collections available.  
+
+**Core rule of the difficulty curve:**  
+**The player should never think “I can’t handle this”** — only ever “Wow, now I can create something even more beautiful!”.
+
+New, more complex locations play a big role here:  
+- Tiny cozy studios → spacious apartments → treehouses → parks, common places.  
+Each unlocked location naturally raises the bar just a little — more space to fill thoughtfully, new compositional puzzles, fresh atmosphere challenges — while still feeling like an exciting creative upgrade rather than a stress test.
+
+### Progression System
+
+Progression in Decorator rests on 2 main pillars:
+
+1. **Expanding creative choices**  
+   - Unlock new, increasingly interesting rooms and floors (from basic studio → apartments → treehouse → unusual common places with unique layouts and constraints)  
+   - New thematic furniture sets (Vintage, Forest Dream, Japandi, Cyber Cozy, Boho, Brutalism, etc.)  
+   - More variations within each category (e.g. 4 sofa styles instead of 1)
+
+2. **Deepening creativity & freedom**  
+   - Shift from hyper-specific tasks → open mood- and style-based briefs  
+   - Freedom to mix styles (player chooses how closely to follow the brief)  
+   - Compositional challenges grow naturally with room size, shape, and complexity
+
+Ultimately the player doesn’t feel “I’m getting stronger” — they feel  
+**“I’m getting freer to create → my rooms become more beautiful → residents become happier”**.
+
+Perfect for long, stress-free, cozy evenings of gentle creative flow.
+
 ---
 
 ## 📚 References
