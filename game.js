@@ -197,6 +197,16 @@ class BriefingScene extends Phaser.Scene {
 }
 
 // --- Scene: Design ---
+const GRID_CONFIG = {
+    tileW: 56,
+    tileH: 28,
+    rows: 10,
+    cols: 10,
+    offsetX: 400,
+    offsetY: 155,
+    angle: 0
+};
+
 class DesignScene extends Phaser.Scene {
     constructor() {
         super('DesignScene');
@@ -213,10 +223,18 @@ class DesignScene extends Phaser.Scene {
         this.load.image('closet', 'assets/closet.png?v=' + version);
         this.load.image('plant', 'assets/plant.png?v=' + version);
         this.load.image('table', 'assets/table.png?v=' + version);
+        this.load.image('lamp', 'assets/lamp.png?v=' + version);
     }
 
     create() {
         furnitureItems = []; // Reset items
+        
+        // Grid logic
+        this.staticGridGraphics = this.add.graphics().setDepth(0.5);
+        this.drawFullGrid();
+        
+        this.gridGraphics = this.add.graphics().setDepth(1);
+        
         if (document.getElementById('ui-panel')) {
             document.getElementById('ui-panel').style.display = 'block';
             // Устанавливаем фон комнаты через CSS для 100% стабильности
@@ -240,7 +258,7 @@ class DesignScene extends Phaser.Scene {
         }).setDepth(100);
 
         // Изначально пустая комната (кроме одного "Старого стула", который просят удалить в текущем задании)
-        this.addFurnitureObject(250, 300, 'Old Chair', 0x8b7355);
+        this.addFurnitureObject(0, 0, 'Old Chair', 0x8b7355);
 
         this.updateUI();
 
@@ -252,7 +270,13 @@ class DesignScene extends Phaser.Scene {
             if (type === 'Bed') color = 0xadd8e6;
             if (type === 'Chair') color = 0x8b7355;
             if (type === 'Closet') color = 0x6b4226;
-            this.addFurnitureObject(400, 250, type, color);
+            
+            const pos = this.findFreeSpace(2, 2);
+            if (pos) {
+                this.addFurnitureObject(pos.gridX, pos.gridY, type, color);
+            } else {
+                alert("Нет свободного места!");
+            }
         };
 
         window.submitGame = () => {
@@ -279,8 +303,113 @@ class DesignScene extends Phaser.Scene {
         // Фоновая картинка теперь в CSS, здесь ничего не нужно фиксировать
     }
 
-    addFurnitureObject(x, y, name, color) {
-        const container = this.add.container(x, y);
+    drawFullGrid() {
+        this.staticGridGraphics.clear();
+        this.staticGridGraphics.lineStyle(1, 0x8b7355, 0.4);
+
+        // Рисуем линии вдоль X
+        for (let i = 0; i <= GRID_CONFIG.rows; i++) {
+            const p1 = this.isoToScreen(0, i);
+            const p2 = this.isoToScreen(GRID_CONFIG.cols, i);
+            this.staticGridGraphics.lineBetween(p1.x, p1.y, p2.x, p2.y);
+        }
+
+        // Рисуем линии вдоль Y
+        for (let i = 0; i <= GRID_CONFIG.cols; i++) {
+            const p1 = this.isoToScreen(i, 0);
+            const p2 = this.isoToScreen(i, GRID_CONFIG.rows);
+            this.staticGridGraphics.lineBetween(p1.x, p1.y, p2.x, p2.y);
+        }
+    }
+
+    isoToScreen(gridX, gridY) {
+        const rad = (GRID_CONFIG.angle || 0) * Math.PI / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+
+        let x = (gridX - gridY) * (GRID_CONFIG.tileW / 2);
+        let y = (gridX + gridY) * (GRID_CONFIG.tileH / 2);
+
+        // Вращение
+        const rx = x * cos - y * sin;
+        const ry = x * sin + y * cos;
+
+        return { x: rx + GRID_CONFIG.offsetX, y: ry + GRID_CONFIG.offsetY };
+    }
+
+    screenToIso(x, y) {
+        const rad = (GRID_CONFIG.angle || 0) * Math.PI / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+
+        let dx = x - GRID_CONFIG.offsetX;
+        let dy = y - GRID_CONFIG.offsetY;
+
+        // Обратное вращение
+        const rx = dx * cos + dy * sin;
+        const ry = -dx * sin + dy * cos;
+
+        const gridX = Math.floor((ry / (GRID_CONFIG.tileH / 2) + rx / (GRID_CONFIG.tileW / 2)) / 2);
+        const gridY = Math.floor((ry / (GRID_CONFIG.tileH / 2) - rx / (GRID_CONFIG.tileW / 2)) / 2);
+        return { gridX, gridY };
+    }
+
+    isSpaceFree(gridX, gridY, sizeW, sizeH, ignoreItem = null) {
+        if (gridX < 0 || gridY < 0 || gridX + sizeW > GRID_CONFIG.cols || gridY + sizeH > GRID_CONFIG.rows) return false;
+
+        for (let item of furnitureItems) {
+            if (item === ignoreItem) continue;
+            // Простая проверка пересечения прямоугольников в сетке
+            if (gridX < item.gridX + item.gridW &&
+                gridX + sizeW > item.gridX &&
+                gridY < item.gridY + item.gridH &&
+                gridY + sizeH > item.gridY) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    findFreeSpace(sizeW, sizeH) {
+        for (let y = 0; y <= GRID_CONFIG.rows - sizeH; y++) {
+            for (let x = 0; x <= GRID_CONFIG.cols - sizeW; x++) {
+                if (this.isSpaceFree(x, y, sizeW, sizeH)) return { gridX: x, gridY: y };
+            }
+        }
+        return null;
+    }
+
+    drawGridIndicator(gridX, gridY, sizeW, sizeH, isValid) {
+        this.gridGraphics.clear();
+        const color = isValid ? 0x00ff00 : 0xff0000;
+        this.gridGraphics.lineStyle(2, color, 0.8);
+        this.gridGraphics.fillStyle(color, 0.3);
+
+        const points = [];
+        // Рисуем ромб для области
+        const p1 = this.isoToScreen(gridX, gridY);
+        const p2 = this.isoToScreen(gridX + sizeW, gridY);
+        const p3 = this.isoToScreen(gridX + sizeW, gridY + sizeH);
+        const p4 = this.isoToScreen(gridX, gridY + sizeH);
+
+        this.gridGraphics.beginPath();
+        this.gridGraphics.moveTo(p1.x, p1.y);
+        this.gridGraphics.lineTo(p2.x, p2.y);
+        this.gridGraphics.lineTo(p3.x, p3.y);
+        this.gridGraphics.lineTo(p4.x, p4.y);
+        this.gridGraphics.closePath();
+        this.gridGraphics.fillPath();
+        this.gridGraphics.strokePath();
+    }
+
+    addFurnitureObject(gridX, gridY, name, color) {
+        const screenPos = this.isoToScreen(gridX, gridY);
+        const container = this.add.container(screenPos.x, screenPos.y);
+        container.gridX = gridX;
+        container.gridY = gridY;
+        container.gridW = 2; // Предмет занимает 2х2 клетки
+        container.gridH = 2;
+        container.setDepth(10 + gridX + gridY); // Сортировка по глубине
         
         // Поиск текстуры (сначала точное совпадение, потом по ключевому слову)
         let textureKey = name.toLowerCase().replace(' ', '_');
@@ -290,6 +419,7 @@ class DesignScene extends Phaser.Scene {
             else if (textureKey.includes('table')) textureKey = 'table';
             else if (textureKey.includes('plant')) textureKey = 'plant';
             else if (textureKey.includes('closet')) textureKey = 'closet';
+            else if (textureKey.includes('lamp')) textureKey = 'lamp';
         }
         
         let visual;
@@ -323,15 +453,43 @@ class DesignScene extends Phaser.Scene {
         }
         
         container.addAt(visual, 0);
-        container.setSize(visual.width * (visual.scaleX || 1), visual.height * (visual.scaleY || 1));
+        // Центрируем визуальный объект относительно точки привязки (верхнего угла ромба)
+        visual.y = -visual.displayHeight / 2 + GRID_CONFIG.tileH; 
+
+        container.setSize(visual.displayWidth, visual.displayHeight);
         container.setInteractive({ draggable: true });
         container.name = name;
 
         this.input.setDraggable(container);
 
+        container.on('dragstart', () => {
+            container.setDepth(1000);
+            this.gridGraphics.setVisible(true);
+        });
+
         container.on('drag', (pointer, dragX, dragY) => {
             container.x = dragX;
             container.y = dragY;
+            
+            const iso = this.screenToIso(dragX, dragY);
+            const isValid = this.isSpaceFree(iso.gridX, iso.gridY, container.gridW, container.gridH, container);
+            this.drawGridIndicator(iso.gridX, iso.gridY, container.gridW, container.gridH, isValid);
+        });
+
+        container.on('dragend', (pointer) => {
+            const iso = this.screenToIso(container.x, container.y);
+            const isValid = this.isSpaceFree(iso.gridX, iso.gridY, container.gridW, container.gridH, container);
+            
+            if (isValid) {
+                container.gridX = iso.gridX;
+                container.gridY = iso.gridY;
+            }
+            
+            const finalPos = this.isoToScreen(container.gridX, container.gridY);
+            container.x = finalPos.x;
+            container.y = finalPos.y;
+            container.setDepth(10 + container.gridX + container.gridY);
+            this.gridGraphics.clear();
         });
 
         let lastClickTime = 0;
