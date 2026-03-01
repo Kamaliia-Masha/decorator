@@ -197,6 +197,18 @@ class BriefingScene extends Phaser.Scene {
 }
 
 // --- Calibration & Surfaces ---
+const ITEM_SIZES = {
+    'Plant': { w: 2, h: 2 },
+    'Lamp': { w: 2, h: 2 },
+    'Chair': { w: 2, h: 2 },
+    'Old Chair': { w: 2, h: 2 },
+    'Table': { w: 2, h: 2 },
+    'Bed': { w: 2, h: 2 },
+    'Closet': { w: 2, h: 2 },
+    'Window': { w: 2, h: 2 },
+    'Mirror': { w: 2, h: 2 }
+};
+
 const ROOM_WIDTH = 1536;
 const ROOM_HEIGHT = 1024;
 const DISPLAY_WIDTH = 800;
@@ -271,6 +283,27 @@ const SURFACES = {
     right: new Surface(P_WALL0, P_R_WALL, P_CEIL, 10, 10)
 };
 
+// --- Grid Occupancy Matrix ---
+const GRID_OCCUPANCY = {
+    floor: Array(10).fill().map(() => Array(10).fill(null)),
+    left: Array(10).fill().map(() => Array(10).fill(null)),
+    right: Array(10).fill().map(() => Array(10).fill(null))
+};
+
+function updateOccupancy(item, clear = false) {
+    const side = item.wallSide || 'floor';
+    const matrix = GRID_OCCUPANCY[side];
+    if (!matrix) return;
+
+    for (let y = item.gridY; y < item.gridY + item.gridH; y++) {
+        for (let x = item.gridX; x < item.gridX + item.gridW; x++) {
+            if (y >= 0 && y < 10 && x >= 0 && x < 10) {
+                matrix[y][x] = clear ? null : item;
+            }
+        }
+    }
+}
+
 // --- Scene: Design ---
 
 class DesignScene extends Phaser.Scene {
@@ -335,11 +368,13 @@ class DesignScene extends Phaser.Scene {
         this.addFurnitureObject(0, 0, 'Old Chair', 0x8b7355);
 
         // Добавляем окно и зеркало на стены
-        const windowPos = this.findFreeWallSpace(2, 2);
+        const windowSize = ITEM_SIZES['Window'] || { w: 2, h: 2 };
+        const windowPos = this.findFreeWallSpace(windowSize.w, windowSize.h);
         if (windowPos) {
             this.addFurnitureObject(windowPos.gridX, windowPos.gridY, 'Window', 0xadd8e6, windowPos.wallSide);
         }
-        const mirrorPos = this.findFreeWallSpace(2, 2);
+        const mirrorSize = ITEM_SIZES['Mirror'] || { w: 2, h: 2 };
+        const mirrorPos = this.findFreeWallSpace(mirrorSize.w, mirrorSize.h);
         if (mirrorPos) {
             this.addFurnitureObject(mirrorPos.gridX, mirrorPos.gridY, 'Mirror', 0xe0e0e0, mirrorPos.wallSide);
         }
@@ -358,7 +393,8 @@ class DesignScene extends Phaser.Scene {
             if (type === 'Mirror') color = 0xe0e0e0;
             
             const isWallItem = (type === 'Window' || type === 'Mirror');
-            const pos = isWallItem ? this.findFreeWallSpace(2, 2) : this.findFreeSpace(2, 2);
+            const size = ITEM_SIZES[type] || { w: 2, h: 2 };
+            const pos = isWallItem ? this.findFreeWallSpace(size.w, size.h) : this.findFreeSpace(size.w, size.h);
             
             if (pos) {
                 this.addFurnitureObject(pos.gridX, pos.gridY, type, color, pos.wallSide);
@@ -452,18 +488,20 @@ class DesignScene extends Phaser.Scene {
     }
 
     isSpaceFree(gridX, gridY, sizeW, sizeH, ignoreItem = null, wallSide = null) {
-        const surface = SURFACES[wallSide || 'floor'];
+        const side = wallSide || 'floor';
+        const surface = SURFACES[side];
+        const matrix = GRID_OCCUPANCY[side];
+
+        // Проверка границ сетки
         if (gridX < 0 || gridY < 0 || gridX + sizeW > surface.cols || gridY + sizeH > surface.rows) return false;
 
-        for (let item of furnitureItems) {
-            if (item === ignoreItem) continue;
-            if (item.wallSide !== (wallSide || null)) continue;
-
-            if (gridX < item.gridX + item.gridW &&
-                gridX + sizeW > item.gridX &&
-                gridY < item.gridY + item.gridH &&
-                gridY + sizeH > item.gridY) {
-                return false;
+        // Проверка пересечения через матрицу
+        for (let y = gridY; y < gridY + sizeH; y++) {
+            for (let x = gridX; x < gridX + sizeW; x++) {
+                const occupant = matrix[y][x];
+                if (occupant && occupant !== ignoreItem) {
+                    return false;
+                }
             }
         }
         return true;
@@ -515,12 +553,13 @@ class DesignScene extends Phaser.Scene {
 
     addFurnitureObject(gridX, gridY, name, color, wallSide = null) {
         const isWallItem = (name === 'Window' || name === 'Mirror');
+        const size = ITEM_SIZES[name] || { w: 2, h: 2 };
         const screenPos = this.isoToScreen(gridX, gridY, wallSide);
         const container = this.add.container(screenPos.x, screenPos.y);
         container.gridX = gridX;
         container.gridY = gridY;
-        container.gridW = 2; // Предмет занимает 2х2 клетки
-        container.gridH = 2;
+        container.gridW = size.w;
+        container.gridH = size.h;
         container.wallSide = wallSide;
         container.isWallItem = isWallItem;
         
@@ -596,7 +635,7 @@ class DesignScene extends Phaser.Scene {
 
         container.on('dragstart', () => {
             container.setDepth(1000);
-            container.tempWallSide = container.wallSide; // Инициализируем временную сторону
+            container.tempWallSide = container.wallSide;
             this.gridGraphics.setVisible(true);
             this.staticGridGraphics.clear();
             if (container.isWallItem) {
@@ -605,12 +644,31 @@ class DesignScene extends Phaser.Scene {
             } else {
                 this.drawFullGrid();
             }
+            // Сохраняем начальное состояние на случай отмены (snap back)
+            container.originalGridX = container.gridX;
+            container.originalGridY = container.gridY;
+            container.originalWallSide = container.wallSide;
+            
+            // Очищаем старое место в матрице перед перетаскиванием
+            updateOccupancy(container, true);
+
+            // Инициализируем текущее состояние как валидное
+            container.targetIsValid = true;
+            container.targetGridX = container.gridX;
+            container.targetGridY = container.gridY;
+            container.targetWallSide = container.wallSide;
         });
 
         container.on('drag', (pointer, dragX, dragY) => {
             const iso = this.screenToIso(dragX, dragY, container.isWallItem);
             const isValid = this.isSpaceFree(iso.gridX, iso.gridY, container.gridW, container.gridH, container, iso.wallSide);
             
+            // Сохраняем "целевое" состояние для использования в dragend
+            container.targetGridX = iso.gridX;
+            container.targetGridY = iso.gridY;
+            container.targetWallSide = iso.wallSide;
+            container.targetIsValid = isValid;
+
             // Если сменилась стена, меняем текстуру
             if (container.isWallItem && iso.wallSide && iso.wallSide !== container.tempWallSide) {
                 container.tempWallSide = iso.wallSide;
@@ -620,24 +678,40 @@ class DesignScene extends Phaser.Scene {
                 }
             }
 
-            // Snapping: object follows snapped grid position
-            const snappedPos = this.isoToScreen(iso.gridX, iso.gridY, iso.wallSide);
-            container.x = snappedPos.x;
-            container.y = snappedPos.y;
+            // Предметам запрещается накладываться: 
+            // Спрайт перемещается в ячейку только если она свободна.
+            if (isValid) {
+                const snappedPos = this.isoToScreen(iso.gridX, iso.gridY, iso.wallSide);
+                container.x = snappedPos.x;
+                container.y = snappedPos.y;
+            }
 
+            // Отображаем индикатор (всегда следует за курсором и горит красным, если нельзя ставить)
             this.drawGridIndicator(iso.gridX, iso.gridY, container.gridW, container.gridH, isValid, iso.wallSide);
         });
 
-        container.on('dragend', (pointer) => {
-            const iso = this.screenToIso(container.x, container.y, container.isWallItem);
-            const isValid = this.isSpaceFree(iso.gridX, iso.gridY, container.gridW, container.gridH, container, iso.wallSide);
-            
-            if (isValid) {
-                container.gridX = iso.gridX;
-                container.gridY = iso.gridY;
-                container.wallSide = iso.wallSide;
+        container.on('dragend', () => {
+            // Если в момент отпускания индикатор был красным — возвращаем предмет на исходное место
+            if (container.targetIsValid) {
+                container.gridX = container.targetGridX;
+                container.gridY = container.targetGridY;
+                container.wallSide = container.targetWallSide;
+            } else {
+                container.gridX = container.originalGridX;
+                container.gridY = container.originalGridY;
+                container.wallSide = container.originalWallSide;
+                
+                // Визуальное обновление текстуры (если предмет настенный)
+                if (container.isWallItem) {
+                    const originalTexture = getTextureKey(container.name, container.wallSide);
+                    if (originalTexture) visual.setTexture(originalTexture);
+                }
             }
+
+            // Обновляем матрицу занятости на новом (или старом) месте
+            updateOccupancy(container);
             
+            // Финальное примагничивание
             const finalPos = this.isoToScreen(container.gridX, container.gridY, container.wallSide);
             container.x = finalPos.x;
             container.y = finalPos.y;
@@ -662,9 +736,14 @@ class DesignScene extends Phaser.Scene {
         });
 
         furnitureItems.push(container);
+        // Добавляем в матрицу при создании
+        updateOccupancy(container);
     }
 
     removeObject(container) {
+        // Очищаем место в матрице перед удалением
+        updateOccupancy(container, true);
+
         const index = furnitureItems.indexOf(container);
         if (index > -1) {
             furnitureItems.splice(index, 1);
