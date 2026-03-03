@@ -364,19 +364,28 @@ class DesignScene extends Phaser.Scene {
             padding: { x: 10, y: 5 }
         }).setDepth(100);
 
-        // Изначально пустая комната (кроме одного "Старого стула", который просят удалить в текущем задании)
-        this.addFurnitureObject(0, 0, 'Old Chair', 0x8b7355);
-
-        // Добавляем окно и зеркало на стены
-        const windowSize = ITEM_SIZES['Window'] || { w: 2, h: 2 };
-        const windowPos = this.findFreeWallSpace(windowSize.w, windowSize.h);
-        if (windowPos) {
-            this.addFurnitureObject(windowPos.gridX, windowPos.gridY, 'Window', 0xadd8e6, windowPos.wallSide);
+        // Изначально пустая комната
+        const chairSize = ITEM_SIZES['Chair'] || { w: 2, h: 2 };
+        // Правый угол комнаты на полу (высокий X, низкий Y)
+        const chairX = 8;
+        const chairY = 0;
+        if (this.isSpaceFree(chairX, chairY, chairSize.w, chairSize.h)) {
+            this.addFurnitureObject(chairX, chairY, 'Chair', 0x8b7355);
         }
+
+        // Добавляем окно на левую стену и зеркало на правую
+        const windowSize = ITEM_SIZES['Window'] || { w: 2, h: 2 };
+        const windowX = 4;
+        const windowY = 4;
+        if (this.isSpaceFree(windowX, windowY, windowSize.w, windowSize.h, null, 'left')) {
+            this.addFurnitureObject(windowX, windowY, 'Window', 0xadd8e6, 'left');
+        }
+
         const mirrorSize = ITEM_SIZES['Mirror'] || { w: 2, h: 2 };
-        const mirrorPos = this.findFreeWallSpace(mirrorSize.w, mirrorSize.h);
-        if (mirrorPos) {
-            this.addFurnitureObject(mirrorPos.gridX, mirrorPos.gridY, 'Mirror', 0xe0e0e0, mirrorPos.wallSide);
+        const mirrorX = 4;
+        const mirrorY = 4;
+        if (this.isSpaceFree(mirrorX, mirrorY, mirrorSize.w, mirrorSize.h, null, 'right')) {
+            this.addFurnitureObject(mirrorX, mirrorY, 'Mirror', 0xe0e0e0, 'right');
         }
 
         this.updateUI();
