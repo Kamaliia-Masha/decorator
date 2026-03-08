@@ -11,4 +11,9 @@
     <Compile Remove="DecoratorTests/**/*.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="assets\Floor_Items\" />
+    <Folder Include="assets\Wall_items\" />
+  </ItemGroup>
+
 </Project>
