@@ -375,23 +375,23 @@ class BriefingScene extends Phaser.Scene {
 
 // --- Calibration & Surfaces ---
 const ITEM_SIZES = {
-    'Plant': { w: 2, h: 2 },
-    'Lamp': { w: 2, h: 2 },
-    'Chair': { w: 2, h: 2 },
-    'Old Chair': { w: 2, h: 2 },
+    'Plant': { w: 1, h: 1 },
+    'Lamp': { w: 1, h: 1 },
+    'Chair': { w: 1, h: 1 },
+    'Old Chair': { w: 1, h: 1 },
     'Table': { w: 2, h: 2 },
     'Bed': { w: 2, h: 2 },
-    'Closet': { w: 2, h: 2 },
-    'Window': { w: 2, h: 2 },
-    'Mirror': { w: 2, h: 2 },
+    'Closet': { w: 2, h: 1 },
+    'Window': { w: 2, h: 4 },
+    'Mirror': { w: 2, h: 5 },
     'Table2': { w: 2, h: 2 },
-    'Chair2': { w: 2, h: 2 },
-    'Flower2': { w: 2, h: 2 },
-    'Puffic2': { w: 2, h: 2 },
-    'Stairs2': { w: 2, h: 2 },
-    'Mirror2': { w: 2, h: 2 },
-    'Clock2': { w: 2, h: 2 },
-    'Shell2': { w: 2, h: 2 }
+    'Chair2': { w: 1, h: 1 },
+    'Flower2': { w: 1, h: 1 },
+    'Puffic2': { w: 1, h: 1 },
+    'Stairs2': { w: 2, h: 3 },
+    'Mirror2': { w: 1, h: 3 },
+    'Clock2': { w: 1, h: 1 },
+    'Shell2': { w: 1, h: 1 }
 };
 
 const ROOM_WIDTH = 1536;
@@ -401,17 +401,17 @@ const DISPLAY_HEIGHT = 500;
 const SCALE_X = DISPLAY_WIDTH / ROOM_WIDTH;
 const SCALE_Y = DISPLAY_HEIGHT / ROOM_HEIGHT;
 
-const P_CEIL = { x: 767.8 * SCALE_X, y: 7.3 * SCALE_Y };
+const P_CEIL = { x: 767.8 * SCALE_X, y: 40.0 * SCALE_Y };
 const P_WALL0 = { x: 768.9 * SCALE_X, y: 310.7 * SCALE_Y };
 const P_FLOOR0 = { x: 770.1 * SCALE_X, y: 331.4 * SCALE_Y };
 
 const P_L_CEIL = { x: 144.7 * SCALE_X, y: 356.3 * SCALE_Y };
-const P_L_WALL = { x: 173.5 * SCALE_X, y: 643.7 * SCALE_Y };
-const P_L_FLOOR = { x: 173.5 * SCALE_X, y: 665.0 * SCALE_Y };
+const P_L_WALL = { x: 207.5 * SCALE_X, y: 645.0 * SCALE_Y };
+const P_L_FLOOR = { x: 208.5 * SCALE_X, y: 670.0 * SCALE_Y };
 
 const P_R_CEIL = { x: 1389.3 * SCALE_X, y: 338.3 * SCALE_Y };
-const P_R_WALL = { x: 1362.2 * SCALE_X, y: 630.0 * SCALE_Y };
-const P_R_FLOOR = { x: 1363.9 * SCALE_X, y: 653.0 * SCALE_Y };
+const P_R_WALL = { x: 1327.5 * SCALE_X, y: 627.0 * SCALE_Y };
+const P_R_FLOOR = { x: 1335 * SCALE_X, y: 658.0 * SCALE_Y };
 
 class Surface {
     constructor(origin, targetX, targetY, cols, rows) {
@@ -491,6 +491,12 @@ function updateOccupancy(item, clear = false) {
 
 // --- Scene: Design ---
 
+function resetOccupancy() {
+    GRID_OCCUPANCY.floor = Array(10).fill().map(() => Array(10).fill(null));
+    GRID_OCCUPANCY.left = Array(10).fill().map(() => Array(10).fill(null));
+    GRID_OCCUPANCY.right = Array(10).fill().map(() => Array(10).fill(null));
+}
+
 class DesignScene extends Phaser.Scene {
     constructor() {
         super('DesignScene');
@@ -530,6 +536,7 @@ class DesignScene extends Phaser.Scene {
 
     create() {
         furnitureItems = []; // Reset items
+        resetOccupancy(); // Сбрасываем сетку занятости при входе в новый дизайн-проект
         
         // Grid logic
         this.staticGridGraphics = this.add.graphics().setDepth(0.5);
@@ -757,16 +764,27 @@ class DesignScene extends Phaser.Scene {
         return null;
     }
 
-    drawGridIndicator(gridX, gridY, sizeW, sizeH, isValid, wallSide) {
+    drawGridIndicator(gridX, gridY, sizeW, sizeH, isValid, wallSide, name = "") {
         this.gridGraphics.clear();
         const color = isValid ? 0x00ff00 : 0xff0000;
         this.gridGraphics.lineStyle(2, color, 0.8);
         this.gridGraphics.fillStyle(color, 0.3);
 
-        const p1 = this.isoToScreen(gridX, gridY, wallSide);
-        const p2 = this.isoToScreen(gridX + sizeW, gridY, wallSide);
-        const p3 = this.isoToScreen(gridX + sizeW, gridY + sizeH, wallSide);
-        const p4 = this.isoToScreen(gridX, gridY + sizeH, wallSide);
+        let offsetX = 0;
+        let offsetY = 0;
+        if (name === 'Window' || name === 'Mirror') {
+            offsetX = -1;
+            offsetY = 0;
+        }
+        if (name === 'Table' || name === 'Bed'){
+            offsetX = -1;
+            offsetY = -1;
+        }
+
+        const p1 = this.isoToScreen(gridX + offsetX, gridY + offsetY, wallSide);
+        const p2 = this.isoToScreen(gridX + sizeW + offsetX, gridY + offsetY, wallSide);
+        const p3 = this.isoToScreen(gridX + sizeW + offsetX, gridY + sizeH + offsetY, wallSide);
+        const p4 = this.isoToScreen(gridX + offsetX, gridY + sizeH + offsetY, wallSide);
 
         this.gridGraphics.beginPath();
         this.gridGraphics.moveTo(p1.x, p1.y);
@@ -891,8 +909,9 @@ class DesignScene extends Phaser.Scene {
         }
         
         container.addAt(visual, 0);
+        
         // visual anchor is center-bottom for floor items, or relative to wall
-        // We set origin to (0.5, 1) to make it stand on the cell
+        // We set origin to (0.5, 0.5) to make it stand on the cell
         visual.setOrigin(0.5, 0.5);
         visual.y = 0; 
 
@@ -956,7 +975,7 @@ class DesignScene extends Phaser.Scene {
             }
 
             // Отображаем индикатор (всегда следует за курсором и горит красным, если нельзя ставить)
-            this.drawGridIndicator(iso.gridX, iso.gridY, container.gridW, container.gridH, isValid, iso.wallSide);
+            this.drawGridIndicator(iso.gridX, iso.gridY, container.gridW, container.gridH, isValid, iso.wallSide, container.name);
         });
 
         container.on('dragend', () => {
