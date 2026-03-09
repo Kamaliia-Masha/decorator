@@ -491,6 +491,12 @@ function updateOccupancy(item, clear = false) {
 
 // --- Scene: Design ---
 
+function resetOccupancy() {
+    GRID_OCCUPANCY.floor = Array(10).fill().map(() => Array(10).fill(null));
+    GRID_OCCUPANCY.left = Array(10).fill().map(() => Array(10).fill(null));
+    GRID_OCCUPANCY.right = Array(10).fill().map(() => Array(10).fill(null));
+}
+
 class DesignScene extends Phaser.Scene {
     constructor() {
         super('DesignScene');
@@ -530,6 +536,7 @@ class DesignScene extends Phaser.Scene {
 
     create() {
         furnitureItems = []; // Reset items
+        resetOccupancy(); // Сбрасываем сетку занятости при входе в новый дизайн-проект
         
         // Grid logic
         this.staticGridGraphics = this.add.graphics().setDepth(0.5);
