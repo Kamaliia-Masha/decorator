@@ -401,17 +401,17 @@ const DISPLAY_HEIGHT = 500;
 const SCALE_X = DISPLAY_WIDTH / ROOM_WIDTH;
 const SCALE_Y = DISPLAY_HEIGHT / ROOM_HEIGHT;
 
-const P_CEIL = { x: 767.8 * SCALE_X, y: 7.3 * SCALE_Y };
+const P_CEIL = { x: 767.8 * SCALE_X, y: 40.0 * SCALE_Y };
 const P_WALL0 = { x: 768.9 * SCALE_X, y: 310.7 * SCALE_Y };
 const P_FLOOR0 = { x: 770.1 * SCALE_X, y: 331.4 * SCALE_Y };
 
 const P_L_CEIL = { x: 144.7 * SCALE_X, y: 356.3 * SCALE_Y };
-const P_L_WALL = { x: 173.5 * SCALE_X, y: 643.7 * SCALE_Y };
-const P_L_FLOOR = { x: 173.5 * SCALE_X, y: 665.0 * SCALE_Y };
+const P_L_WALL = { x: 207.5 * SCALE_X, y: 645.0 * SCALE_Y };
+const P_L_FLOOR = { x: 208.5 * SCALE_X, y: 670.0 * SCALE_Y };
 
 const P_R_CEIL = { x: 1389.3 * SCALE_X, y: 338.3 * SCALE_Y };
-const P_R_WALL = { x: 1362.2 * SCALE_X, y: 630.0 * SCALE_Y };
-const P_R_FLOOR = { x: 1363.9 * SCALE_X, y: 653.0 * SCALE_Y };
+const P_R_WALL = { x: 1327.5 * SCALE_X, y: 627.0 * SCALE_Y };
+const P_R_FLOOR = { x: 1335 * SCALE_X, y: 658.0 * SCALE_Y };
 
 class Surface {
     constructor(origin, targetX, targetY, cols, rows) {
