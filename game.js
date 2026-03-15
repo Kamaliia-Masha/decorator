@@ -1,7 +1,17 @@
 let furnitureItems = [];
 let currency = 0;
-let purchasedItems = new Set(); // Названия купленных предметов (с цифрой 2)
-let currentLevel = 0; // Текущий уровень (индекс комнаты)
+let purchasedItems = new Set(); // Names of purchased items (those with suffix 2)
+let currentLevel = 0; // Current level (room index)
+
+// Room template dimensions (obtained via `file` or `identify`)
+const ROOM_DIMENSIONS = [
+    { w: 1506, h: 1022 }, // emptyRoomTemplate.png
+    { w: 1536, h: 1024 }, // Shablon1.png
+    { w: 1264, h: 842 },  // Shablon2.png
+    { w: 1536, h: 1024 }, // Shablon3.png
+    { w: 1536, h: 1024 }, // Shablon4.png
+    { w: 1248, h: 832 }   // Shablon5.png
+];
 
 const ROOM_TEMPLATES = [
     'assets/rooms/emptyRoomTemplate.png',
@@ -15,42 +25,42 @@ const ROOM_TEMPLATES = [
 const COMMISSIONS = [
     {
         residentName: "Kamaliia",
-        brief: "Привет! Мне нужна уютная студия. Можешь добавить растение и лампу? И, пожалуйста, выкинь этот старый стул, он меня бесит!",
+        brief: "Hi! I need a cozy studio. Could you add a plant and a lamp? And please, throw away this old chair, it's driving me crazy!",
         requiredAdd: ["Plant", "Lamp"],
         requiredRemove: ["Old Chair"],
         reward: 100
     },
     {
         residentName: "Aleksey",
-        brief: "Хочу рабочее место! Поставь стол и стул. И убери это растение, у меня аллергия.",
+        brief: "I want a workspace! Place a table and a chair. And remove that plant, I have an allergy.",
         requiredAdd: ["Table", "Chair"],
         requiredRemove: ["Plant"],
         reward: 100
     },
     {
         residentName: "Elena",
-        brief: "Мне нужно больше света! Добавь лампу и окно. Старый шкаф уже не нужен.",
+        brief: "I need more light! Add a lamp and a window. The old closet is no longer needed.",
         requiredAdd: ["Lamp", "Window"],
         requiredRemove: ["Closet"],
         reward: 100
     },
     {
         residentName: "Dmitry",
-        brief: "Сделай комнату для отдыха! Кровать и зеркало — это то, что нужно. И выкинь этот стол.",
+        brief: "Make a relaxation room! A bed and a mirror are exactly what I need. And throw out this table.",
         requiredAdd: ["Bed", "Mirror"],
         requiredRemove: ["Table"],
         reward: 100
     },
     {
         residentName: "Sophia",
-        brief: "Я люблю растения! Поставь два растения (Plant) и стул. Старая лампа мне не нравится.",
+        brief: "I love plants! Place two plants and a chair. I don't like the old lamp.",
         requiredAdd: ["Plant", "Plant", "Chair"],
         requiredRemove: ["Lamp"],
         reward: 100
     },
     {
         residentName: "Victor",
-        brief: "Мне нужен кабинет. Шкаф и стол — обязательно. И убери кровать.",
+        brief: "I need an office. A closet and a table are a must. And remove the bed.",
         requiredAdd: ["Closet", "Table"],
         requiredRemove: ["Bed"],
         reward: 100
@@ -61,7 +71,7 @@ function getCurrentCommission() {
     return COMMISSIONS[currentLevel % COMMISSIONS.length];
 }
 
-// Данные магазина
+// Shop data
 const SHOP_ITEMS = [
     { name: 'Table2', price: 30, type: 'floor', texture: 'table2', displayName: 'Table 2' },
     { name: 'Chair2', price: 30, type: 'floor', texture: 'chair2', displayName: 'Chair 2' },
@@ -90,14 +100,14 @@ class ShopScene extends Phaser.Scene {
             fontWeight: 'bold' 
         }).setOrigin(0.5);
 
-        // Отображение валюты
+        // Currency display
         this.currencyText = this.add.text(780, 20, `Coins: ${currency}`, { 
             color: '#5f4b32', 
             fontSize: '20px', 
             fontWeight: 'bold' 
         }).setOrigin(1, 0);
 
-        // Список товаров
+        // Product list
         const startX = 100;
         const startY = 120;
         const spacingX = 150;
@@ -111,7 +121,7 @@ class ShopScene extends Phaser.Scene {
 
             const isPurchased = purchasedItems.has(item.name);
 
-            // Картинка товара
+            // Item image
             const img = this.add.image(x, y, item.texture);
             const scale = 80 / Math.max(img.width, img.height);
             img.setScale(scale);
@@ -167,12 +177,12 @@ class BriefingScene extends Phaser.Scene {
     }
 
     preload() {
-        // Загружаем персонажа-кролика и фон агентства
+        // Load rabbit character and agency background
         this.load.image('rabbit', 'assets/floor_items/rabbit.png');
         this.load.image('agency_bg', 'assets/rooms/agency.png');
         this.load.image('shop_table', 'assets/rooms/shopTable.png');
         
-        // Загружаем все ассеты для магазина сразу (чтобы иконки были видны)
+        // Load all shop assets at once (so icons are visible)
         this.load.image('table2', 'assets/floor_items/table2.png');
         this.load.image('chair2', 'assets/floor_items/chair2.png');
         this.load.image('flower2', 'assets/floor_items/flower2.png');
@@ -188,7 +198,7 @@ class BriefingScene extends Phaser.Scene {
             document.getElementById('ui-panel').style.display = 'none';
         }
 
-        // Background: Используем добавленный фон агентства
+        // Background: Using the added agency background
         const bg = this.add.image(400, 250, 'agency_bg');
         bg.setDisplaySize(800, 500);
         bg.setDepth(0);
@@ -196,7 +206,7 @@ class BriefingScene extends Phaser.Scene {
         // Agency Counter
         const counter = this.add.rectangle(400, 420, 600, 100, 0x8b7355);
         counter.setStrokeStyle(4, 0x5f4b32);
-        counter.setDepth(10); // Стойка должна быть ВЫШЕ персонажа
+        counter.setDepth(10); // Counter must be ABOVE the character
         this.add.text(400, 420, 'DECOR AGENCY', { color: '#fff', fontSize: '24px', fontWeight: 'bold' }).setOrigin(0.5).setDepth(11);
 
         // Tip Jar
@@ -205,21 +215,21 @@ class BriefingScene extends Phaser.Scene {
         jar.setStrokeStyle(2, 0x5f4b32);
         const jarLabel = this.add.text(0, 20, 'TIPS', { color: '#5f4b32', fontSize: '12px', fontWeight: 'bold' }).setOrigin(0.5);
         this.tipJar.add([jar, jarLabel]);
-        this.tipJar.setDepth(15); // Ставим НА стол
+        this.tipJar.setDepth(15); // Place ON the counter
 
         // Cash Register
         this.register = this.add.container(150, 370);
         const reg = this.add.rectangle(0, 0, 70, 50, 0x333);
         const regLabel = this.add.text(0, 0, 'CASH', { color: '#fff', fontSize: '10px' }).setOrigin(0.5);
         this.register.add([reg, regLabel]);
-        this.register.setDepth(15); // Ставим НА стол
+        this.register.setDepth(15); // Place ON the counter
 
         // Character (Resident)
-        const startX = this.result ? 450 : -100; // Если есть результат, сразу стоит у стола
+        const startX = this.result ? 450 : -100; // If there is a result, standing by the counter
         const characterContainer = this.add.container(startX, 320);
         
-        // Используем спрайт кролика вместо кружков
-        const rabbit = this.add.image(0, 50, 'rabbit'); // Опустим кролика чуть ниже в контейнере
+        // Using rabbit sprite instead of circles
+        const rabbit = this.add.image(0, 50, 'rabbit'); // Move rabbit lower in container
         rabbit.setScale(0.5); 
         
         if (this.result === 'failure') {
@@ -227,9 +237,9 @@ class BriefingScene extends Phaser.Scene {
         }
         
         characterContainer.add([rabbit]);
-        characterContainer.setDepth(5); // Персонаж НИЖЕ стойки
+        characterContainer.setDepth(5); // Character BELOW the counter
         
-        this.characterSprite = rabbit; // Сохраняем ссылку для анимации
+        this.characterSprite = rabbit; // Save reference for animation
 
         // Speech Bubble Group
         this.bubbleGroup = this.add.group();
@@ -248,8 +258,8 @@ class BriefingScene extends Phaser.Scene {
         bubble.strokePath();
 
         let message = getCurrentCommission().brief;
-        if (this.result === 'success') message = "Это просто великолепно! Вот ваши чаевые!";
-        else if (this.result === 'failure') message = "Ужасно... Я забираю свои деньги назад!";
+        if (this.result === 'success') message = "This is simply magnificent! Here are your tips!";
+        else if (this.result === 'failure') message = "Terrible... I'm taking my money back!";
 
         this.speechText = this.add.text(375, 105, message, {
             color: '#5f4b32',
@@ -257,27 +267,27 @@ class BriefingScene extends Phaser.Scene {
             wordWrap: { width: 350 }
         });
 
-        // Buttons (ВНУТРИ ОБЛАКА)
+        // Buttons (INSIDE BUBBLE)
         const btnBg = this.add.rectangle(550, 225, 180, 45, 0x8fb9a8).setInteractive({ useHandCursor: true });
-        let btnLabel = this.result ? 'ДАЛЕЕ' : 'ПРИНЯТЬ';
+        let btnLabel = this.result ? 'NEXT' : 'ACCEPT';
         
         const btnText = this.add.text(550, 225, btnLabel, { color: '#fff', fontSize: '16px', fontWeight: 'bold' }).setOrigin(0.5);
         
         this.bubbleGroup.addMultiple([bubble, this.speechText, btnBg, btnText]);
         this.bubbleGroup.setVisible(false);
 
-        // Кнопка МАГАЗИН (Маленькая наклейка "SHOP")
+        // SHOP Button (Small sticker "SHOP")
         const shopBtn = this.add.image(60, 45, 'shop_table').setInteractive({ useHandCursor: true });
-        shopBtn.setScale(0.15); // Делаем ее маленькой наклейкой
-        shopBtn.setAngle(-5); // Слегка наклоним для вида наклейки
+        shopBtn.setScale(0.15); // Making it a small sticker
+        shopBtn.setAngle(-5); // Slight tilt for a sticker look
         shopBtn.setDepth(100);
         
         shopBtn.on('pointerdown', () => {
             this.scene.start('ShopScene');
         });
 
-        // Счетчик монет
-        this.currencyText = this.add.text(780, 20, `Монеты: ${currency}`, { 
+        // Coins counter
+        this.currencyText = this.add.text(780, 20, `Coins: ${currency}`, { 
             color: '#5f4b32', 
             fontSize: '20px', 
             fontWeight: 'bold' 
@@ -319,9 +329,9 @@ class BriefingScene extends Phaser.Scene {
     handleReview(character) {
         // Show reaction directly
         if (this.result === 'success') {
-            this.speechText.setText("Это просто великолепно! Вот ваши чаевые!");
+            this.speechText.setText("This is simply magnificent! Here are your tips!");
         } else {
-            this.speechText.setText("Ужасно... Я забираю свои деньги назад!");
+            this.speechText.setText("Terrible... I'm taking my money back!");
             if (this.characterSprite) this.characterSprite.setTint(0x888888); 
         }
 
@@ -330,7 +340,7 @@ class BriefingScene extends Phaser.Scene {
         // Show "CONTINUE" button after a short delay inside the bubble
         this.time.delayedCall(500, () => {
             const continueBtnBg = this.add.rectangle(550, 225, 180, 45, 0x8fb9a8).setInteractive({ useHandCursor: true });
-            const continueBtnText = this.add.text(550, 225, 'ДАЛЕЕ', { color: '#fff', fontSize: '16px', fontWeight: 'bold' }).setOrigin(0.5);
+            const continueBtnText = this.add.text(550, 225, 'NEXT', { color: '#fff', fontSize: '16px', fontWeight: 'bold' }).setOrigin(0.5);
             this.bubbleGroup.addMultiple([continueBtnBg, continueBtnText]);
 
             continueBtnBg.on('pointerdown', () => {
@@ -342,7 +352,7 @@ class BriefingScene extends Phaser.Scene {
     handleEconomyAnimation(result, character) {
         const coin = this.add.circle(character.x, character.y - 20, 10, 0xffd700);
         coin.setStrokeStyle(2, 0x5f4b32);
-        coin.setDepth(20); // Монета должна лететь ПОВЕРХ всего
+        coin.setDepth(20); // Coin must fly ABOVE everything
         
         if (result === 'success') {
             this.tweens.add({
@@ -354,8 +364,8 @@ class BriefingScene extends Phaser.Scene {
                 onComplete: () => {
                     coin.destroy();
                     this.cameras.main.shake(100, 0.01);
-                    // Обновляем счетчик после анимации
-                    this.currencyText.setText(`Монеты: ${currency}`);
+                    // Update counter after animation
+                    this.currencyText.setText(`Coins: ${currency}`);
                 }
             });
         } else {
@@ -394,24 +404,24 @@ const ITEM_SIZES = {
     'Shell2': { w: 1, h: 1 }
 };
 
-const ROOM_WIDTH = 1536;
-const ROOM_HEIGHT = 1024;
 const DISPLAY_WIDTH = 800;
 const DISPLAY_HEIGHT = 500;
-const SCALE_X = DISPLAY_WIDTH / ROOM_WIDTH;
-const SCALE_Y = DISPLAY_HEIGHT / ROOM_HEIGHT;
 
-const P_CEIL = { x: 767.8 * SCALE_X, y: 40.0 * SCALE_Y };
-const P_WALL0 = { x: 768.9 * SCALE_X, y: 310.7 * SCALE_Y };
-const P_FLOOR0 = { x: 770.1 * SCALE_X, y: 331.4 * SCALE_Y };
+const SCALE_X = 800 / 1536;
+const SCALE_Y = 500 / 1024;
 
-const P_L_CEIL = { x: 144.7 * SCALE_X, y: 356.3 * SCALE_Y };
-const P_L_WALL = { x: 207.5 * SCALE_X, y: 645.0 * SCALE_Y };
-const P_L_FLOOR = { x: 208.5 * SCALE_X, y: 670.0 * SCALE_Y };
-
-const P_R_CEIL = { x: 1389.3 * SCALE_X, y: 338.3 * SCALE_Y };
-const P_R_WALL = { x: 1327.5 * SCALE_X, y: 627.0 * SCALE_Y };
-const P_R_FLOOR = { x: 1335 * SCALE_X, y: 658.0 * SCALE_Y };
+// Base grid coordinates (for 1536x1024 resolution)
+const BASE_POINTS = {
+    ceil: { x: 767.8 * SCALE_X, y: 40.0 * SCALE_Y },
+    wall0: { x: 768.9 * SCALE_X, y: 310.7 * SCALE_Y },
+    floor0: { x: 770.1 * SCALE_X, y: 331.4 * SCALE_Y },
+    l_ceil: { x: 144.7 * SCALE_X, y: 356.3 * SCALE_Y },
+    l_wall: { x: 207.5 * SCALE_X, y: 645.0 * SCALE_Y },
+    l_floor: { x: 208.5 * SCALE_X, y: 670.0 * SCALE_Y },
+    r_ceil: { x: 1389.3 * SCALE_X, y: 338.3 * SCALE_Y },
+    r_wall: { x: 1327.5 * SCALE_X, y: 627.0 * SCALE_Y },
+    r_floor: { x: 1335 * SCALE_X, y: 658.0 * SCALE_Y }
+};
 
 class Surface {
     constructor(origin, targetX, targetY, cols, rows) {
@@ -462,11 +472,7 @@ class Surface {
     }
 }
 
-const SURFACES = {
-    floor: new Surface(P_FLOOR0, P_R_FLOOR, P_L_FLOOR, 10, 10),
-    left: new Surface(P_WALL0, P_L_WALL, P_CEIL, 10, 10),
-    right: new Surface(P_WALL0, P_R_WALL, P_CEIL, 10, 10)
-};
+let SURFACES = {};
 
 // --- Grid Occupancy Matrix ---
 const GRID_OCCUPANCY = {
@@ -503,12 +509,12 @@ class DesignScene extends Phaser.Scene {
     }
 
     preload() {
-        // Загружаем шаблон комнаты (добавляем версию для сброса кэша)
+        // Load room template (add version for cache busting)
         const version = Date.now();
         const roomImg = ROOM_TEMPLATES[currentLevel % ROOM_TEMPLATES.length];
         this.load.image('room_bg', roomImg + '?v=' + version);
         
-        // Загружаем новую мебель
+        // Load new furniture
         this.load.image('bed', 'assets/floor_items/bed.png?v=' + version);
         this.load.image('chair', 'assets/floor_items/chair.png?v=' + version);
         this.load.image('chair2', 'assets/floor_items/chair2.png?v=' + version);
@@ -527,7 +533,7 @@ class DesignScene extends Phaser.Scene {
         this.load.image('clock2', 'assets/wall_items/clock2.png?v=' + version);
         this.load.image('shell2', 'assets/wall_items/Shell2.png?v=' + version);
         
-        // Специфические ассеты для стен
+        // Wall-specific assets
         this.load.image('window_left_wall', 'assets/wall_items/window_left_wall.png?v=' + version);
         this.load.image('window_right_wall', 'assets/wall_items/window_right_wall.png?v=' + version);
         this.load.image('mirror_left_wall', 'assets/wall_items/mirror_left_wall.png?v=' + version);
@@ -536,57 +542,71 @@ class DesignScene extends Phaser.Scene {
 
     create() {
         furnitureItems = []; // Reset items
-        resetOccupancy(); // Сбрасываем сетку занятости при входе в новый дизайн-проект
+        resetOccupancy(); // Reset occupancy grid when entering a new design project
+
+        const p = BASE_POINTS;
+        SURFACES = {
+            floor: new Surface(p.floor0, p.r_floor, p.l_floor, 10, 10),
+            left: new Surface(p.wall0, p.l_wall, p.ceil, 10, 10),
+            right: new Surface(p.wall0, p.r_wall, p.ceil, 10, 10)
+        };
         
         // Grid logic
         this.staticGridGraphics = this.add.graphics().setDepth(0.5);
-        this.drawFullGrid();
+        // Grid is hidden by default
         
         this.gridGraphics = this.add.graphics().setDepth(1);
         
         if (document.getElementById('ui-panel')) {
             document.getElementById('ui-panel').style.display = 'block';
             
-            // Обновляем бриф
+            // Update brief
             const commission = getCurrentCommission();
             document.getElementById('resident-name').innerText = commission.residentName;
             document.getElementById('brief-text').innerText = commission.brief;
-            document.getElementById('requirements').innerText = `Add: ${commission.requiredAdd.join(', ')}. Remove: ${commission.requiredRemove.join(', ')}`;
 
-            // Устанавливаем фон комнаты через CSS для 100% стабильности
+            // Add handler for Done button
+            const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) {
+        // Clear old handlers before setting a new one
+        submitBtn.onclick = null;
+        submitBtn.onclick = (e) => {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            console.log("Submit button clicked via onclick");
+            if (window.submitGame) window.submitGame(e);
+        };
+    }
+
+            // Set room background via CSS for 100% stability
             const container = document.getElementById('game-container');
             const roomImg = ROOM_TEMPLATES[currentLevel % ROOM_TEMPLATES.length];
             container.style.backgroundImage = `url('${roomImg}?v=${Date.now()}')`;
             
-            // Динамическое обновление списка кнопок инвентаря
+            // Dynamic inventory button list update
             this.updateInventoryUI();
         }
         
-        // В самом Phaser фон больше не создаем, чтобы он не мог двигаться
+        // In Phaser we no longer create background so it can't move
         this.bg = null;
         
-        // Блокируем любые изменения масштаба или позиции камеры
+        // Block any zoom or camera position changes
         this.cameras.main.setZoom(1);
         this.cameras.main.centerOn(400, 250);
 
-        this.add.text(10, 10, 'Комната: Дизайн-проект', { 
-            color: '#5f4b32', 
-            fontSize: '20px', 
-            fontWeight: 'bold',
-            backgroundColor: '#ffffff88',
-            padding: { x: 10, y: 5 }
-        }).setDepth(100);
 
-        // Изначально пустая комната
+        // Initially empty room
         const chairSize = ITEM_SIZES['Chair'] || { w: 2, h: 2 };
-        // Правый угол комнаты на полу (высокий X, низкий Y)
+        // Right corner of the room on the floor (high X, low Y)
         const chairX = 8;
         const chairY = 0;
         if (this.isSpaceFree(chairX, chairY, chairSize.w, chairSize.h)) {
             this.addFurnitureObject(chairX, chairY, 'Chair', 0x8b7355);
         }
 
-        // Добавляем окно на левую стену и зеркало на правую
+        // Add window to left wall and mirror to right wall
         const windowSize = ITEM_SIZES['Window'] || { w: 2, h: 2 };
         const windowX = 4;
         const windowY = 4;
@@ -626,16 +646,17 @@ class DesignScene extends Phaser.Scene {
             if (pos) {
                 this.addFurnitureObject(pos.gridX, pos.gridY, type, color, pos.wallSide);
             } else {
-                alert("Нет свободного места!");
+                alert("No free space!");
             }
         };
 
         window.submitGame = (e) => {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            console.log("Submitting game...");
+            // Remove binding to avoid repeat calls during transition
+            window.submitGame = null;
+            const submitBtn = document.getElementById('submit-btn');
+            if (submitBtn) submitBtn.onclick = null;
+
+            console.log("Submitting game logic execution...");
             const commission = getCurrentCommission();
             const hasAdditions = commission.requiredAdd.every(req => 
                 furnitureItems.some(item => item.name.toLowerCase().includes(req.toLowerCase()))
@@ -648,17 +669,23 @@ class DesignScene extends Phaser.Scene {
             
             if (result === 'success') {
                 currency += commission.reward;
-                currentLevel++; // Переходим к следующей комнате
-                // document.getElementById('currency-display').innerText = `Валюта: ${currency}`;
+                currentLevel++; // Move to next room
+                // document.getElementById('currency-display').innerText = `Currency: ${currency}`;
             }
 
-            // Переход в холл со СРАЗУ видимым результатом
+            // Transition to agency hall with IMMEDIATELY visible result
+            const feedbackEl = document.getElementById('feedback');
+            if (feedbackEl) {
+                feedbackEl.style.display = 'block';
+                feedbackEl.innerText = result === 'success' ? "Great! Design accepted." : "Client is not quite happy. Check requirements.";
+                setTimeout(() => { feedbackEl.style.display = 'none'; }, 3000);
+            }
             this.scene.start('BriefingScene', { result: result });
         };
     }
 
     update() {
-        // Фоновая картинка теперь в CSS, здесь ничего не нужно фиксировать
+        // Background image is in CSS, nothing to fix here
     }
 
     drawFullGrid() {
@@ -726,10 +753,10 @@ class DesignScene extends Phaser.Scene {
         const surface = SURFACES[side];
         const matrix = GRID_OCCUPANCY[side];
 
-        // Проверка границ сетки
+        // Grid bounds check
         if (gridX < 0 || gridY < 0 || gridX + sizeW > surface.cols || gridY + sizeH > surface.rows) return false;
 
-        // Проверка пересечения через матрицу
+        // Matrix intersection check
         for (let y = gridY; y < gridY + sizeH; y++) {
             for (let x = gridX; x < gridX + sizeW; x++) {
                 const occupant = matrix[y][x];
@@ -742,7 +769,7 @@ class DesignScene extends Phaser.Scene {
     }
 
     findFreeWallSpace(sizeW, sizeH) {
-        // Пробуем левую стену, потом правую
+        // Try left wall then right wall
         for (let side of ['left', 'right']) {
             const surface = SURFACES[side];
             for (let y = 0; y <= surface.rows - sizeH; y++) {
@@ -797,28 +824,35 @@ class DesignScene extends Phaser.Scene {
     }
 
     updateInventoryUI() {
-        const inventory = document.getElementById('inventory');
-        if (!inventory) return;
+        const invLeft = document.getElementById('inventory-left');
+        const invRight = document.getElementById('inventory-right');
+        if (!invLeft || !invRight) return;
 
-        console.log("Updating inventory UI...");
+        console.log("Updating split inventory UI...");
         const baseItems = ['Plant', 'Table', 'Bed', 'Chair', 'Closet', 'Lamp', 'Window', 'Mirror'];
         const allItems = [...baseItems];
-        
-        // Добавляем купленные предметы
         purchasedItems.forEach(item => allItems.push(item));
 
-        inventory.innerHTML = '<strong>Add items:</strong>';
+        invLeft.innerHTML = '<strong>Floor</strong>';
+        invRight.innerHTML = '<strong>Walls</strong>';
+
         allItems.forEach(type => {
+            const isWallItem = (type === 'Window' || type === 'Mirror' || type === 'Mirror2' || type === 'Clock2' || type === 'Shell2');
+            
             const btn = document.createElement('button');
             btn.className = 'btn';
-            btn.innerText = `Add ${type}`;
+            btn.innerText = `+ ${type}`;
             btn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log(`Adding furniture: ${type}`);
                 window.addFurniture(type);
             };
-            inventory.appendChild(btn);
+
+            if (isWallItem) {
+                invRight.appendChild(btn);
+            } else {
+                invLeft.appendChild(btn);
+            }
         });
     }
 
@@ -834,10 +868,10 @@ class DesignScene extends Phaser.Scene {
         container.wallSide = wallSide;
         container.isWallItem = isWallItem;
         
-        container.setDepth(isWallItem ? 5 : 10 + gridX + gridY); // Стены глубже, но предметы на них должны быть видны
+        container.setDepth(isWallItem ? 5 : 10 + gridX + gridY); // Walls are deeper, but items on them must be visible
         if (isWallItem) container.setDepth(container.wallSide === 'left' ? 6 : 7);
         
-        // Поиск текстуры (сначала точное совпадение, потом по ключевому слову)
+        // Texture search (exact match first, then by keyword)
         const getTextureKey = (itemName, side) => {
             let key = itemName.toLowerCase().replace(' ', '_');
             if (side && (key === 'window' || key === 'mirror' || key === 'mirror2' || key === 'window2')) {
@@ -846,7 +880,7 @@ class DesignScene extends Phaser.Scene {
             }
             if (this.textures.exists(key)) return key;
             
-            // Запасные варианты (generic)
+            // Generic fallbacks
             if (key.includes('chair')) return 'chair';
             if (key.includes('bed')) return 'bed';
             if (key.includes('table')) return 'table';
@@ -868,12 +902,12 @@ class DesignScene extends Phaser.Scene {
         let visual;
         if (textureKey && this.textures.exists(textureKey)) {
             visual = this.add.image(0, 0, textureKey);
-            // Уменьшаем лимит размера, чтобы мебель была соразмерна комнате
+            // Decrease size limit so furniture is proportional to the room
             let maxDim = 220; 
             
-            // Если в названии есть цифра 2, уменьшаем еще сильнее, так как эти ассеты крупнее
+            // If the name contains digit 2, decrease even further as these assets are larger
             if (name.includes('2')) {
-                maxDim = 120; // Подобрано экспериментально для соразмерности
+                maxDim = 120; // Chosen experimentally for proportionality
             }
 
             if (visual.width > maxDim || visual.height > maxDim) {
@@ -881,7 +915,7 @@ class DesignScene extends Phaser.Scene {
                 visual.setScale(scale);
             }
         } else {
-            // Заглушка, если картинки нет
+            // Placeholder if image is missing
             visual = this.add.rectangle(0, 0, 80, 80, color);
             visual.setStrokeStyle(3, 0x5f4b32);
             
@@ -932,15 +966,15 @@ class DesignScene extends Phaser.Scene {
             } else {
                 this.drawFullGrid();
             }
-            // Сохраняем начальное состояние на случай отмены (snap back)
+            // Save initial state for snap back on cancel
             container.originalGridX = container.gridX;
             container.originalGridY = container.gridY;
             container.originalWallSide = container.wallSide;
             
-            // Очищаем старое место в матрице перед перетаскиванием
+            // Clear old place in matrix before dragging
             updateOccupancy(container, true);
 
-            // Инициализируем текущее состояние как валидное
+            // Initialize current state as valid
             container.targetIsValid = true;
             container.targetGridX = container.gridX;
             container.targetGridY = container.gridY;
@@ -951,13 +985,13 @@ class DesignScene extends Phaser.Scene {
             const iso = this.screenToIso(dragX, dragY, container.isWallItem);
             const isValid = this.isSpaceFree(iso.gridX, iso.gridY, container.gridW, container.gridH, container, iso.wallSide);
             
-            // Сохраняем "целевое" состояние для использования в dragend
+            // Save "target" state for use in dragend
             container.targetGridX = iso.gridX;
             container.targetGridY = iso.gridY;
             container.targetWallSide = iso.wallSide;
             container.targetIsValid = isValid;
 
-            // Если сменилась стена, меняем текстуру
+            // If wall changed, change texture
             if (container.isWallItem && iso.wallSide && iso.wallSide !== container.tempWallSide) {
                 container.tempWallSide = iso.wallSide;
                 const newTexture = getTextureKey(container.name, iso.wallSide);
@@ -966,20 +1000,20 @@ class DesignScene extends Phaser.Scene {
                 }
             }
 
-            // Предметам запрещается накладываться: 
-            // Спрайт перемещается в ячейку только если она свободна.
+            // Items are not allowed to overlap:
+            // Sprite moves to cell only if it's free.
             if (isValid) {
                 const snappedPos = this.isoToScreen(iso.gridX, iso.gridY, iso.wallSide);
                 container.x = snappedPos.x;
                 container.y = snappedPos.y;
             }
 
-            // Отображаем индикатор (всегда следует за курсором и горит красным, если нельзя ставить)
+            // Display indicator (always follows cursor and glows red if placement is invalid)
             this.drawGridIndicator(iso.gridX, iso.gridY, container.gridW, container.gridH, isValid, iso.wallSide, container.name);
         });
 
         container.on('dragend', () => {
-            // Если в момент отпускания индикатор был красным — возвращаем предмет на исходное место
+            // If indicator was red on release, return item to original place
             if (container.targetIsValid) {
                 container.gridX = container.targetGridX;
                 container.gridY = container.targetGridY;
@@ -989,17 +1023,17 @@ class DesignScene extends Phaser.Scene {
                 container.gridY = container.originalGridY;
                 container.wallSide = container.originalWallSide;
                 
-                // Визуальное обновление текстуры (если предмет настенный)
+                // Visual texture update (if wall item)
                 if (container.isWallItem) {
                     const originalTexture = getTextureKey(container.name, container.wallSide);
                     if (originalTexture) visual.setTexture(originalTexture);
                 }
             }
 
-            // Обновляем матрицу занятости на новом (или старом) месте
+            // Update occupancy matrix in new (or old) place
             updateOccupancy(container);
             
-            // Финальное примагничивание
+            // Final snapping
             const finalPos = this.isoToScreen(container.gridX, container.gridY, container.wallSide);
             container.x = finalPos.x;
             container.y = finalPos.y;
@@ -1010,8 +1044,7 @@ class DesignScene extends Phaser.Scene {
                 container.setDepth(10 + container.gridX + container.gridY);
             }
             this.gridGraphics.clear();
-            this.staticGridGraphics.clear();
-            this.drawFullGrid(); 
+            this.staticGridGraphics.clear(); // Hide grid after drag ends
         });
 
         let lastClickTime = 0;
@@ -1024,12 +1057,12 @@ class DesignScene extends Phaser.Scene {
         });
 
         furnitureItems.push(container);
-        // Добавляем в матрицу при создании
+        // Add to matrix upon creation
         updateOccupancy(container);
     }
 
     removeObject(container) {
-        // Очищаем место в матрице перед удалением
+        // Clear place in matrix before deletion
         updateOccupancy(container, true);
 
         const index = furnitureItems.indexOf(container);
@@ -1043,8 +1076,6 @@ class DesignScene extends Phaser.Scene {
         const commission = getCurrentCommission();
         document.getElementById('resident-name').innerText = commission.residentName;
         document.getElementById('brief-text').innerText = commission.brief;
-        document.getElementById('requirements').innerText = 
-            `Добавить: ${commission.requiredAdd.join(', ')} | Удалить: ${commission.requiredRemove.join(', ')}`;
     }
 }
 
@@ -1053,7 +1084,7 @@ const config = {
     width: 800,
     height: 500,
     parent: 'game-container',
-    transparent: true, // Делаем Phaser прозрачным, чтобы видеть CSS-фон
+    transparent: true, // Make Phaser transparent to see CSS background
     scene: [BriefingScene, DesignScene, ShopScene]
 };
 
