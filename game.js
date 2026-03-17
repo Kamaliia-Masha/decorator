@@ -92,24 +92,40 @@ class ShopScene extends Phaser.Scene {
     create() {
         const bg = this.add.image(400, 250, 'agency_bg');
         bg.setDisplaySize(800, 500);
-        bg.setAlpha(0.5);
+        bg.setAlpha(0.3);
 
-        this.add.text(400, 40, 'SHOP', { 
-            color: '#5f4b32', 
-            fontSize: '32px', 
-            fontWeight: 'bold' 
+        // Header panel
+        const headerPanel = this.add.graphics();
+        headerPanel.fillStyle(0xf18c8e, 1);
+        headerPanel.fillRoundedRect(250, 20, 300, 60, 20);
+        headerPanel.lineStyle(4, 0xffffff, 1);
+        headerPanel.strokeRoundedRect(250, 20, 300, 60, 20);
+
+        this.add.text(400, 50, 'AGENCY SHOP', { 
+            color: '#ffffff', 
+            fontSize: '28px', 
+            fontWeight: 'bold',
+            fontFamily: 'Arial Black'
         }).setOrigin(0.5);
 
-        // Currency display
-        this.currencyText = this.add.text(780, 20, `Coins: ${currency}`, { 
+        // Currency display panel
+        const coinBg = this.add.graphics();
+        coinBg.fillStyle(0xffffff, 0.9);
+        coinBg.fillRoundedRect(620, 25, 160, 45, 15);
+        coinBg.lineStyle(2, 0xe6d5c3, 1);
+        coinBg.strokeRoundedRect(620, 25, 160, 45, 15);
+
+        this.add.circle(645, 47, 12, 0xffd700).setStrokeStyle(2, 0x5f4b32);
+
+        this.currencyText = this.add.text(665, 47, `${currency}`, { 
             color: '#5f4b32', 
             fontSize: '20px', 
             fontWeight: 'bold' 
-        }).setOrigin(1, 0);
+        }).setOrigin(0, 0.5);
 
         // Product list
         const startX = 100;
-        const startY = 120;
+        const startY = 150;
         const spacingX = 150;
         const spacingY = 160;
 
@@ -121,48 +137,101 @@ class ShopScene extends Phaser.Scene {
 
             const isPurchased = purchasedItems.has(item.name);
 
+            // Item card background
+            const cardBg = this.add.graphics();
+            cardBg.fillStyle(0xffffff, 0.85);
+            cardBg.fillRoundedRect(x - 65, y - 50, 130, 140, 12);
+            cardBg.lineStyle(2, 0xe6d5c3, 1);
+            cardBg.strokeRoundedRect(x - 65, y - 50, 130, 140, 12);
+
             // Item image
             const img = this.add.image(x, y, item.texture);
-            const scale = 80 / Math.max(img.width, img.height);
+            const scale = 70 / Math.max(img.width, img.height);
             img.setScale(scale);
 
-            this.add.text(x, y + 50, item.displayName, { color: '#5f4b32', fontSize: '14px' }).setOrigin(0.5);
+            this.add.text(x, y + 45, item.displayName, { 
+                color: '#5f4b32', 
+                fontSize: '14px', 
+                fontWeight: 'bold' 
+            }).setOrigin(0.5);
             
-            const priceText = isPurchased ? 'BOUGHT' : `${item.price} coins`;
+            const priceText = isPurchased ? 'BOUGHT' : `${item.price}`;
             const btnColor = isPurchased ? 0xcccccc : 0x8fb9a8;
             
-            const buyBtn = this.add.rectangle(x, y + 80, 110, 30, btnColor).setInteractive({ useHandCursor: !isPurchased });
-            const buyBtnText = this.add.text(x, y + 80, priceText, { color: '#fff', fontSize: '12px', fontWeight: 'bold' }).setOrigin(0.5);
+            const buyBtn = this.add.container(x, y + 75);
+            const buyBtnBg = this.add.graphics();
+            buyBtnBg.fillStyle(btnColor, 1);
+            buyBtnBg.fillRoundedRect(-50, -15, 100, 30, 8);
+            
+            const buyBtnText = this.add.text(0, 0, priceText, { 
+                color: '#fff', 
+                fontSize: '12px', 
+                fontWeight: 'bold' 
+            }).setOrigin(0.5);
 
             if (!isPurchased) {
+                const coinIcon = this.add.circle(35, 0, 6, 0xffd700).setStrokeStyle(1, 0x5f4b32);
+                buyBtn.add([buyBtnBg, buyBtnText, coinIcon]);
+                
+                buyBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -15, 100, 30), Phaser.Geom.Rectangle.Contains);
+                buyBtn.useHandCursor = true;
+
                 buyBtn.on('pointerdown', () => {
                     if (currency >= item.price) {
                         currency -= item.price;
                         purchasedItems.add(item.name);
-                        this.currencyText.setText(`Coins: ${currency}`);
-                        buyBtn.setFillStyle(0xcccccc);
-                        buyBtn.disableInteractive();
+                        this.currencyText.setText(`${currency}`);
+                        buyBtnBg.clear();
+                        buyBtnBg.fillStyle(0xcccccc, 1);
+                        buyBtnBg.fillRoundedRect(-50, -15, 100, 30, 8);
                         buyBtnText.setText('BOUGHT');
+                        if (coinIcon) coinIcon.destroy();
+                        buyBtn.disableInteractive();
                         this.cameras.main.shake(100, 0.005);
                     } else {
-                        this.add.text(400, 450, 'Not enough coins!', { color: '#ff0000', fontSize: '20px' }).setOrigin(0.5).setAlpha(1);
+                        const errorMsg = this.add.text(400, 430, 'Not enough coins!', { 
+                            color: '#ff0000', 
+                            fontSize: '20px',
+                            fontWeight: 'bold',
+                            backgroundColor: '#ffffffcc',
+                            padding: { x: 10, y: 5 }
+                        }).setOrigin(0.5).setAlpha(1);
+                        this.tweens.add({ targets: errorMsg, alpha: 0, delay: 1000, duration: 500, onComplete: () => errorMsg.destroy() });
                         this.cameras.main.shake(200, 0.01);
                     }
                 });
+
+                buyBtn.on('pointerover', () => buyBtn.setScale(1.05));
+                buyBtn.on('pointerout', () => buyBtn.setScale(1.0));
+            } else {
+                buyBtn.add([buyBtnBg, buyBtnText]);
             }
         });
 
         // Кнопка BACK
-        const backBtnBg = this.add.rectangle(400, 450, 150, 40, 0x8fb9a8).setInteractive({ useHandCursor: true });
-        this.add.text(400, 450, 'BACK', { 
+        const backBtn = this.add.container(400, 460);
+        const backBtnBg = this.add.graphics();
+        backBtnBg.fillStyle(0x8fb9a8, 1);
+        backBtnBg.fillRoundedRect(-75, -20, 150, 40, 10);
+        backBtnBg.lineStyle(2, 0xffffff, 1);
+        backBtnBg.strokeRoundedRect(-75, -20, 150, 40, 10);
+
+        const backBtnText = this.add.text(0, 0, 'BACK TO OFFICE', { 
             color: '#fff', 
-            fontSize: '18px', 
+            fontSize: '16px', 
             fontWeight: 'bold' 
         }).setOrigin(0.5);
 
-        backBtnBg.on('pointerdown', () => {
+        backBtn.add([backBtnBg, backBtnText]);
+        backBtn.setInteractive(new Phaser.Geom.Rectangle(-75, -20, 150, 40), Phaser.Geom.Rectangle.Contains);
+        backBtn.useHandCursor = true;
+
+        backBtn.on('pointerdown', () => {
             this.scene.start('BriefingScene');
         });
+        
+        backBtn.on('pointerover', () => backBtn.setScale(1.05));
+        backBtn.on('pointerout', () => backBtn.setScale(1.0));
     }
 }
 
@@ -180,7 +249,6 @@ class BriefingScene extends Phaser.Scene {
         // Load rabbit character and agency background
         this.load.image('rabbit', 'assets/floor_items/rabbit.png');
         this.load.image('agency_bg', 'assets/rooms/agency.png');
-        this.load.image('shop_table', 'assets/rooms/shopTable.png');
         this.load.image('tablee', 'assets/tablee.png');
         
         // Load all shop assets from right_view (per requirements)
@@ -293,13 +361,59 @@ class BriefingScene extends Phaser.Scene {
         this.bubbleGroup.addMultiple([bubble, this.speechText, btnBg, btnText, btnInteraction]);
         this.bubbleGroup.setVisible(false);
 
-        // SHOP Button (Small sticker "SHOP")
-        const shopBtn = this.add.image(60, 45, 'shop_table').setInteractive({ useHandCursor: true });
-        shopBtn.setScale(0.15); // Making it a small sticker
-        shopBtn.setAngle(-5); // Slight tilt for a sticker look
-        shopBtn.setDepth(100);
+        // SHOP Button (Styled as Agency Shop Sign)
+        const shopContainer = this.add.container(85, 55);
+        shopContainer.setDepth(100);
         
-        shopBtn.on('pointerdown', () => {
+        // Background for shop sign: Pink with rounded corners
+        const shopSignBg = this.add.graphics();
+        shopSignBg.fillStyle(0xf18c8e, 1);
+        shopSignBg.fillRoundedRect(-60, -25, 120, 50, 15);
+        shopSignBg.lineStyle(3, 0xffffff, 1);
+        shopSignBg.strokeRoundedRect(-60, -25, 120, 50, 15);
+        
+        const shopSignText = this.add.text(0, 0, 'SHOP', { 
+            color: '#ffffff', 
+            fontSize: '22px', 
+            fontWeight: 'bold',
+            fontFamily: 'Arial Black'
+        }).setOrigin(0.5, 0.5);
+        
+        shopContainer.add([shopSignBg, shopSignText]);
+        
+        const shopHitArea = new Phaser.Geom.Rectangle(-60, -25, 120, 50);
+        shopContainer.setInteractive(shopHitArea, Phaser.Geom.Rectangle.Contains);
+        shopContainer.useHandCursor = true;
+        
+        // Floating animation for the sign
+        this.tweens.add({
+            targets: shopContainer,
+            y: 60,
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        shopContainer.on('pointerover', () => {
+            shopContainer.setScale(1.1);
+            shopSignBg.clear();
+            shopSignBg.fillStyle(0xe07b7d, 1);
+            shopSignBg.fillRoundedRect(-60, -25, 120, 50, 15);
+            shopSignBg.lineStyle(3, 0xffffff, 1);
+            shopSignBg.strokeRoundedRect(-60, -25, 120, 50, 15);
+        });
+        
+        shopContainer.on('pointerout', () => {
+            shopContainer.setScale(1.0);
+            shopSignBg.clear();
+            shopSignBg.fillStyle(0xf18c8e, 1);
+            shopSignBg.fillRoundedRect(-60, -25, 120, 50, 15);
+            shopSignBg.lineStyle(3, 0xffffff, 1);
+            shopSignBg.strokeRoundedRect(-60, -25, 120, 50, 15);
+        });
+
+        shopContainer.on('pointerdown', () => {
             this.scene.start('ShopScene');
         });
 
