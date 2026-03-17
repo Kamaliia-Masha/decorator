@@ -12,8 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="assets\Floor_Items\" />
-    <Folder Include="assets\Wall_items\" />
+    <Folder Include="assets\Wall_items\lest_view\" />
   </ItemGroup>
 
 </Project>

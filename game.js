@@ -183,15 +183,16 @@ class BriefingScene extends Phaser.Scene {
         this.load.image('shop_table', 'assets/rooms/shopTable.png');
         this.load.image('tablee', 'assets/tablee.png');
         
-        // Load all shop assets at once (so icons are visible)
-        this.load.image('table2', 'assets/floor_items/table2.png');
-        this.load.image('chair2', 'assets/floor_items/chair2.png');
-        this.load.image('flower2', 'assets/floor_items/flower2.png');
-        this.load.image('puffic2', 'assets/floor_items/Puffic2.png');
-        this.load.image('stairs2', 'assets/floor_items/stairs2.png');
-        this.load.image('mirror2', 'assets/wall_items/Mirror2.png');
-        this.load.image('clock2', 'assets/wall_items/clock2.png');
-        this.load.image('shell2', 'assets/wall_items/Shell2.png');
+        // Load all shop assets from right_view (per requirements)
+        const version = Date.now();
+        this.load.image('table2', 'assets/floor_items/right_view/table2.png?v=' + version);
+        this.load.image('chair2', 'assets/floor_items/right_view/chair2.png?v=' + version);
+        this.load.image('flower2', 'assets/floor_items/right_view/flower2.png?v=' + version);
+        this.load.image('puffic2', 'assets/floor_items/right_view/puffic2.png?v=' + version);
+        this.load.image('stairs2', 'assets/floor_items/right_view/stairs2.png?v=' + version);
+        this.load.image('mirror2', 'assets/wall_items/right_view/mirror.png?v=' + version); // Note: file name might be mirror.png in folder
+        this.load.image('clock2', 'assets/wall_items/right_view/clock2.png?v=' + version);
+        this.load.image('shell2', 'assets/wall_items/right_view/shelf2.png?v=' + version); // Note: file name is shelf2.png
     }
 
     create() {
@@ -407,16 +408,16 @@ const ITEM_SIZES = {
     'Table': { w: 2, h: 2 },
     'Bed': { w: 2, h: 2 },
     'Closet': { w: 2, h: 1 },
-    'Window': { w: 2, h: 4 },
-    'Mirror': { w: 2, h: 5 },
+    'Window': { w: 2, h: 2 },
+    'Mirror': { w: 1, h: 2 },
     'Table2': { w: 2, h: 2 },
     'Chair2': { w: 1, h: 1 },
     'Flower2': { w: 1, h: 1 },
     'Puffic2': { w: 1, h: 1 },
-    'Stairs2': { w: 2, h: 3 },
-    'Mirror2': { w: 1, h: 3 },
+    'Stairs2': { w: 2, h: 2 },
+    'Mirror2': { w: 1, h: 2 },
     'Clock2': { w: 1, h: 1 },
-    'Shell2': { w: 1, h: 1 }
+    'Shell2': { w: 2, h: 1 }
 };
 
 const DISPLAY_WIDTH = 800;
@@ -529,30 +530,29 @@ class DesignScene extends Phaser.Scene {
         const roomImg = ROOM_TEMPLATES[currentLevel % ROOM_TEMPLATES.length];
         this.load.image('room_bg', roomImg + '?v=' + version);
         
-        // Load new furniture
-        this.load.image('bed', 'assets/floor_items/bed.png?v=' + version);
-        this.load.image('chair', 'assets/floor_items/chair.png?v=' + version);
-        this.load.image('chair2', 'assets/floor_items/chair2.png?v=' + version);
-        this.load.image('closet', 'assets/floor_items/closet.png?v=' + version);
-        this.load.image('plant', 'assets/floor_items/plant.png?v=' + version);
-        this.load.image('table', 'assets/floor_items/table.png?v=' + version);
-        this.load.image('table2', 'assets/floor_items/table2.png?v=' + version);
-        this.load.image('lamp', 'assets/floor_items/lamp.png?v=' + version);
-        this.load.image('flower2', 'assets/floor_items/flower2.png?v=' + version);
-        this.load.image('puffic2', 'assets/floor_items/Puffic2.png?v=' + version);
-        this.load.image('stairs2', 'assets/floor_items/stairs2.png?v=' + version);
-        
-        this.load.image('window', 'assets/wall_items/window.png?v=' + version);
-        this.load.image('mirror', 'assets/wall_items/mirror.png?v=' + version);
-        this.load.image('mirror2', 'assets/wall_items/Mirror2.png?v=' + version);
-        this.load.image('clock2', 'assets/wall_items/clock2.png?v=' + version);
-        this.load.image('shell2', 'assets/wall_items/Shell2.png?v=' + version);
-        
-        // Wall-specific assets
-        this.load.image('window_left_wall', 'assets/wall_items/window_left_wall.png?v=' + version);
-        this.load.image('window_right_wall', 'assets/wall_items/window_right_wall.png?v=' + version);
-        this.load.image('mirror_left_wall', 'assets/wall_items/mirror_left_wall.png?v=' + version);
-        this.load.image('mirror_right_wall', 'assets/wall_items/mirror_right_wall.png?v=' + version);
+        // Load new furniture (left and right views)
+        const floorItems = ['bed', 'chair', 'chair2', 'closet', 'plant', 'table', 'table2', 'lamp', 'flower2', 'puffic2', 'stairs2'];
+        floorItems.forEach(item => {
+            const fileName = item === 'puffic2' ? 'puffic2' : item; // normalized name
+            this.load.image(`${item}_right`, `assets/floor_items/right_view/${fileName}.png?v=${version}`);
+            this.load.image(`${item}_left`, `assets/floor_items/left_view/${fileName}.png?v=${version}`);
+        });
+
+        const wallItems = [
+            { id: 'window', file: 'window' },
+            { id: 'mirror', file: 'mirror' },
+            { id: 'mirror2', file: 'mirror' }, // Mirror2 uses mirror.png in right_view/left_view
+            { id: 'clock2', file: 'clock2' },
+            { id: 'shell2', file: 'shelf2' } // Shell2 uses shelf2.png
+        ];
+        wallItems.forEach(item => {
+            this.load.image(`${item.id}_right`, `assets/wall_items/right_view/${item.file}.png?v=${version}`);
+            this.load.image(`${item.id}_left`, `assets/wall_items/left_view/${item.file}.png?v=${version}`);
+        });
+
+        // UI assets
+        this.load.image('arrow_left', 'https://img.icons8.com/m_sharp/200/FFFFFF/left.png'); 
+        this.load.image('arrow_right', 'https://img.icons8.com/m_sharp/200/FFFFFF/right.png'); 
     }
 
     create() {
@@ -612,16 +612,14 @@ class DesignScene extends Phaser.Scene {
         this.cameras.main.centerOn(400, 250);
 
 
-        // Initially empty room
-        const chairSize = ITEM_SIZES['Chair'] || { w: 2, h: 2 };
-        // Right corner of the room on the floor (high X, low Y)
+        // Initial placement of items (Floor item chair, Wall items window and mirror)
+        const chairSize = ITEM_SIZES['Chair'] || { w: 1, h: 1 };
         const chairX = 8;
         const chairY = 0;
         if (this.isSpaceFree(chairX, chairY, chairSize.w, chairSize.h)) {
             this.addFurnitureObject(chairX, chairY, 'Chair', 0x8b7355);
         }
 
-        // Add window to left wall and mirror to right wall
         const windowSize = ITEM_SIZES['Window'] || { w: 2, h: 2 };
         const windowX = 4;
         const windowY = 4;
@@ -629,7 +627,7 @@ class DesignScene extends Phaser.Scene {
             this.addFurnitureObject(windowX, windowY, 'Window', 0xadd8e6, 'left');
         }
 
-        const mirrorSize = ITEM_SIZES['Mirror'] || { w: 2, h: 2 };
+        const mirrorSize = ITEM_SIZES['Mirror'] || { w: 1, h: 2 };
         const mirrorX = 4;
         const mirrorY = 4;
         if (this.isSpaceFree(mirrorX, mirrorY, mirrorSize.w, mirrorSize.h, null, 'right')) {
@@ -882,49 +880,61 @@ class DesignScene extends Phaser.Scene {
         container.gridH = size.h;
         container.wallSide = wallSide;
         container.isWallItem = isWallItem;
+        container.viewSide = (isWallItem && wallSide === 'left') ? 'left' : 'right'; // Wall items on left wall start as left_view
         
-        container.setDepth(isWallItem ? 5 : 10 + gridX + gridY); // Walls are deeper, but items on them must be visible
+        container.setDepth(isWallItem ? 5 : 10 + gridX + gridY); 
         if (isWallItem) container.setDepth(container.wallSide === 'left' ? 6 : 7);
         
-        // Texture search (exact match first, then by keyword)
-        const getTextureKey = (itemName, side) => {
-            let key = itemName.toLowerCase().replace(' ', '_');
-            if (side && (key === 'window' || key === 'mirror' || key === 'mirror2' || key === 'window2')) {
-                const sideKey = `${key}_${side}_wall`;
-                if (this.textures.exists(sideKey)) return sideKey;
-            }
+        const getTextureKey = (itemName, viewSide) => {
+            let baseKey = itemName.toLowerCase().replace(' ', '_');
+            // Mapping for specific names if needed
+            if (baseKey === 'shelf2') baseKey = 'shell2'; // consistent with ITEM_SIZES and other logic
+            
+            const key = `${baseKey}_${viewSide}`;
             if (this.textures.exists(key)) return key;
             
-            // Generic fallbacks
-            if (key.includes('chair')) return 'chair';
-            if (key.includes('bed')) return 'bed';
-            if (key.includes('table')) return 'table';
-            if (key.includes('plant')) return 'plant';
-            if (key.includes('closet')) return 'closet';
-            if (key.includes('lamp')) return 'lamp';
-            if (key.includes('window')) return 'window';
-            if (key.includes('mirror')) return 'mirror';
-            if (key.includes('clock')) return 'clock2';
-            if (key.includes('shell')) return 'shell2';
-            if (key.includes('flower')) return 'flower2';
-            if (key.includes('puffic')) return 'puffic2';
-            if (key.includes('stairs')) return 'stairs2';
+            // Generic fallback to right view if side view doesn't exist
+            const fallbackKey = `${baseKey}_right`;
+            if (this.textures.exists(fallbackKey)) return fallbackKey;
+
             return null;
         };
 
-        let textureKey = getTextureKey(name, wallSide);
-        
-        let visual;
-        if (textureKey && this.textures.exists(textureKey)) {
-            visual = this.add.image(0, 0, textureKey);
-            // Decrease size limit so furniture is proportional to the room
-            let maxDim = 220; 
-            
-            // If the name contains digit 2, decrease even further as these assets are larger
-            if (name.includes('2')) {
-                maxDim = 120; // Chosen experimentally for proportionality
+        const updateVisualTexture = () => {
+            const textureKey = getTextureKey(name, container.viewSide);
+            if (textureKey && this.textures.exists(textureKey)) {
+                visual.setTexture(textureKey);
+                
+                let maxDim = 150; 
+                if (isWallItem) {
+                    maxDim = 120;
+                    if (name === 'Window' && container.viewSide === 'right') maxDim = 150; // Window on right wall was appearing smaller
+                    if (name.includes('Clock') || name.includes('Shell')) maxDim = 80;
+                }
+                if (name.includes('2') && !isWallItem) {
+                    maxDim = 130;
+                }
+                if (visual.width > maxDim || visual.height > maxDim) {
+                    const scale = maxDim / Math.max(visual.width, visual.height);
+                    visual.setScale(scale);
+                }
             }
+        };
 
+        let initialTexture = getTextureKey(name, container.viewSide);
+        let visual;
+        
+        if (initialTexture && this.textures.exists(initialTexture)) {
+            visual = this.add.image(0, 0, initialTexture);
+            let maxDim = 150; 
+            if (isWallItem) {
+                maxDim = 120;
+                if (name === 'Window' && container.viewSide === 'right') maxDim = 150; // Window on right wall was appearing smaller
+                if (name.includes('Clock') || name.includes('Shell')) maxDim = 80;
+            }
+            if (name.includes('2') && !isWallItem) {
+                maxDim = 130;
+            }
             if (visual.width > maxDim || visual.height > maxDim) {
                 const scale = maxDim / Math.max(visual.width, visual.height);
                 visual.setScale(scale);
@@ -958,12 +968,82 @@ class DesignScene extends Phaser.Scene {
         }
         
         container.addAt(visual, 0);
-        
-        // visual anchor is center-bottom for floor items, or relative to wall
-        // We set origin to (0.5, 0.5) to make it stand on the cell
         visual.setOrigin(0.5, 0.5);
         visual.y = 0; 
 
+        // Arrows for floor items
+        const isNoRotateItem = (name === 'Lamp' || name === 'Plant' || name === 'Flower2');
+        if (!isWallItem && !isNoRotateItem) {
+            const updateArrowsPosition = () => {
+                const pCenter = this.isoToScreen(container.gridX + container.gridW / 2, container.gridY + container.gridH / 2, container.wallSide);
+                const pBase = this.isoToScreen(container.gridX, container.gridY, container.wallSide);
+                
+                // Relative position within container
+                // container.x, container.y is isoToScreen(gridX, gridY)
+                // We want to be at center of the grid object, but vertically at the "base" level
+                // Actually the indicator is drawn around the object.
+                // Let's put them at the bottom corner or similar.
+                // The user said "на уровне индикатора места".
+                
+                // Let's use the offset from container origin (gridX, gridY)
+                const centerPos = this.isoToScreen(container.gridX + container.gridW / 2, container.gridY + container.gridH / 2, container.wallSide);
+                const originPos = this.isoToScreen(container.gridX, container.gridY, container.wallSide);
+                
+                const relX = centerPos.x - originPos.x;
+                const relY = centerPos.y - originPos.y;
+                
+                arrowR.setPosition(relX + 40, relY);
+                arrowL.setPosition(relX - 40, relY);
+            };
+
+            const arrowR = this.add.image(0, 0, 'arrow_right').setScale(0.12).setInteractive({ useHandCursor: true }).setTint(0xf18c8e);
+            const arrowL = this.add.image(0, 0, 'arrow_left').setScale(0.12).setInteractive({ useHandCursor: true }).setTint(0xf18c8e);
+            
+            // Add slight hover effect for "cuteness"
+            [arrowR, arrowL].forEach(arrow => {
+                arrow.on('pointerover', () => arrow.setScale(0.14));
+                arrow.on('pointerout', () => arrow.setScale(0.12));
+            });
+            
+            container.add([arrowR, arrowL]);
+            updateArrowsPosition();
+            
+            const updateArrows = () => {
+                if (container.viewSide === 'right') {
+                    arrowR.setVisible(true);
+                    arrowL.setVisible(false);
+                } else {
+                    arrowR.setVisible(false);
+                    arrowL.setVisible(true);
+                }
+            };
+            
+            updateArrows();
+            
+            arrowR.on('pointerdown', (pointer, x, y, event) => {
+                event.stopPropagation();
+                container.viewSide = 'left';
+                updateVisualTexture();
+                updateArrows();
+            });
+            
+            arrowL.on('pointerdown', (pointer, x, y, event) => {
+                event.stopPropagation();
+                container.viewSide = 'right';
+                updateVisualTexture();
+                updateArrows();
+            });
+            
+            container.updateArrows = updateArrows;
+            container.updateArrowsPosition = updateArrowsPosition;
+        }
+
+        if (isNoRotateItem) {
+            container.viewSide = 'right';
+            updateVisualTexture();
+        }
+
+        container.updateVisualTexture = updateVisualTexture;
         container.setSize(visual.displayWidth, visual.displayHeight);
         container.setInteractive({ draggable: true });
         container.name = name;
@@ -1009,10 +1089,8 @@ class DesignScene extends Phaser.Scene {
             // If wall changed, change texture
             if (container.isWallItem && iso.wallSide && iso.wallSide !== container.tempWallSide) {
                 container.tempWallSide = iso.wallSide;
-                const newTexture = getTextureKey(container.name, iso.wallSide);
-                if (newTexture && visual.texture.key !== newTexture) {
-                    visual.setTexture(newTexture);
-                }
+                container.viewSide = iso.wallSide; // update view side to match wall
+                container.updateVisualTexture();
             }
 
             // Items are not allowed to overlap:
@@ -1021,6 +1099,18 @@ class DesignScene extends Phaser.Scene {
                 const snappedPos = this.isoToScreen(iso.gridX, iso.gridY, iso.wallSide);
                 container.x = snappedPos.x;
                 container.y = snappedPos.y;
+                // Update arrows position during drag if they exist
+                if (container.updateArrowsPosition) {
+                    // Update internal coordinates so updateArrowsPosition uses new ones
+                    const oldGridX = container.gridX;
+                    const oldGridY = container.gridY;
+                    container.gridX = iso.gridX;
+                    container.gridY = iso.gridY;
+                    container.updateArrowsPosition();
+                    // Restore original for standard logic (which updates them in dragend)
+                    container.gridX = oldGridX;
+                    container.gridY = oldGridY;
+                }
             }
 
             // Display indicator (always follows cursor and glows red if placement is invalid)
@@ -1040,9 +1130,14 @@ class DesignScene extends Phaser.Scene {
                 
                 // Visual texture update (if wall item)
                 if (container.isWallItem) {
-                    const originalTexture = getTextureKey(container.name, container.wallSide);
-                    if (originalTexture) visual.setTexture(originalTexture);
+                    container.viewSide = container.wallSide;
+                    container.updateVisualTexture();
                 }
+            }
+            
+            // Ensure arrows are correctly positioned at the final place
+            if (container.updateArrowsPosition) {
+                container.updateArrowsPosition();
             }
 
             // Update occupancy matrix in new (or old) place
