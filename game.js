@@ -345,20 +345,57 @@ class BriefingScene extends Phaser.Scene {
         });
 
         // Buttons (INSIDE BUBBLE)
+        const btnContainer = this.add.container(550, 225);
+        
         const btnBg = this.add.graphics();
-        btnBg.fillStyle(0xf18c8e, 1); // Pink/Red for action buttons
-        btnBg.fillRoundedRect(460, 202, 180, 45, 8); // Radius 8
-        btnBg.lineStyle(2, 0xe07b7d, 1);
-        btnBg.strokeRoundedRect(460, 202, 180, 45, 8);
+        btnBg.fillStyle(0xf18c8e, 1);
+        btnBg.fillRoundedRect(-90, -22, 180, 45, 12);
+        btnBg.lineStyle(3, 0xffffff, 1);
+        btnBg.strokeRoundedRect(-90, -22, 180, 45, 12);
         
-        const btnHitArea = new Phaser.Geom.Rectangle(0, 0, 180, 45);
-        const btnInteraction = this.add.zone(550, 225, 180, 45).setOrigin(0.5).setInteractive({ useHandCursor: true, hitArea: btnHitArea, hitAreaCallback: Phaser.Geom.Rectangle.Contains });
-
         let btnLabel = this.result ? 'NEXT' : 'ACCEPT';
+        const btnText = this.add.text(0, 0, btnLabel, { 
+            color: '#ffffff', 
+            fontSize: '18px', 
+            fontWeight: 'bold',
+            fontFamily: 'Arial Black'
+        }).setOrigin(0.5);
         
-        const btnText = this.add.text(550, 225, btnLabel, { color: '#fff', fontSize: '16px', fontWeight: 'bold' }).setOrigin(0.5);
+        btnContainer.add([btnBg, btnText]);
         
-        this.bubbleGroup.addMultiple([bubble, this.speechText, btnBg, btnText, btnInteraction]);
+        const btnHitArea = new Phaser.Geom.Rectangle(-90, -22, 180, 45);
+        btnContainer.setInteractive(btnHitArea, Phaser.Geom.Rectangle.Contains);
+        btnContainer.useHandCursor = true;
+
+        // Floating animation
+        this.tweens.add({
+            targets: btnContainer,
+            y: 220,
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        btnContainer.on('pointerover', () => {
+            btnContainer.setScale(1.1);
+            btnBg.clear();
+            btnBg.fillStyle(0xe07b7d, 1);
+            btnBg.fillRoundedRect(-90, -22, 180, 45, 12);
+            btnBg.lineStyle(3, 0xffffff, 1);
+            btnBg.strokeRoundedRect(-90, -22, 180, 45, 12);
+        });
+        
+        btnContainer.on('pointerout', () => {
+            btnContainer.setScale(1.0);
+            btnBg.clear();
+            btnBg.fillStyle(0xf18c8e, 1);
+            btnBg.fillRoundedRect(-90, -22, 180, 45, 12);
+            btnBg.lineStyle(3, 0xffffff, 1);
+            btnBg.strokeRoundedRect(-90, -22, 180, 45, 12);
+        });
+        
+        this.bubbleGroup.addMultiple([bubble, this.speechText, btnContainer]);
         this.bubbleGroup.setVisible(false);
 
         // SHOP Button (Styled as Agency Shop Sign)
@@ -439,7 +476,7 @@ class BriefingScene extends Phaser.Scene {
             this.handleEconomyAnimation(this.result, characterContainer);
         }
 
-        btnInteraction.on('pointerdown', () => {
+        btnContainer.on('pointerdown', () => {
             if (this.result) {
                 this.scene.start('BriefingScene', { result: null });
             } else {
@@ -461,19 +498,58 @@ class BriefingScene extends Phaser.Scene {
         
         // Show "CONTINUE" button after a short delay inside the bubble
         this.time.delayedCall(500, () => {
+            const continueBtnContainer = this.add.container(550, 225);
+            
             const continueBtnBg = this.add.graphics();
             continueBtnBg.fillStyle(0xf18c8e, 1);
-            continueBtnBg.fillRoundedRect(460, 202, 180, 45, 8);
-            continueBtnBg.lineStyle(2, 0xe07b7d, 1);
-            continueBtnBg.strokeRoundedRect(460, 202, 180, 45, 8);
+            continueBtnBg.fillRoundedRect(-90, -22, 180, 45, 12);
+            continueBtnBg.lineStyle(3, 0xffffff, 1);
+            continueBtnBg.strokeRoundedRect(-90, -22, 180, 45, 12);
             
-            const btnHitArea = new Phaser.Geom.Rectangle(0, 0, 180, 45);
-            const continueBtnInteraction = this.add.zone(550, 225, 180, 45).setOrigin(0.5).setInteractive({ useHandCursor: true, hitArea: btnHitArea, hitAreaCallback: Phaser.Geom.Rectangle.Contains });
+            const continueBtnText = this.add.text(0, 0, 'NEXT', { 
+                color: '#ffffff', 
+                fontSize: '18px', 
+                fontWeight: 'bold',
+                fontFamily: 'Arial Black'
+            }).setOrigin(0.5);
             
-            const continueBtnText = this.add.text(550, 225, 'NEXT', { color: '#fff', fontSize: '16px', fontWeight: 'bold' }).setOrigin(0.5);
-            this.bubbleGroup.addMultiple([continueBtnBg, continueBtnText, continueBtnInteraction]);
+            continueBtnContainer.add([continueBtnBg, continueBtnText]);
+            
+            const btnHitArea = new Phaser.Geom.Rectangle(-90, -22, 180, 45);
+            continueBtnContainer.setInteractive(btnHitArea, Phaser.Geom.Rectangle.Contains);
+            continueBtnContainer.useHandCursor = true;
 
-            continueBtnInteraction.on('pointerdown', () => {
+            // Floating animation
+            this.tweens.add({
+                targets: continueBtnContainer,
+                y: 220,
+                duration: 1500,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+
+            continueBtnContainer.on('pointerover', () => {
+                continueBtnContainer.setScale(1.1);
+                continueBtnBg.clear();
+                continueBtnBg.fillStyle(0xe07b7d, 1);
+                continueBtnBg.fillRoundedRect(-90, -22, 180, 45, 12);
+                continueBtnBg.lineStyle(3, 0xffffff, 1);
+                continueBtnBg.strokeRoundedRect(-90, -22, 180, 45, 12);
+            });
+            
+            continueBtnContainer.on('pointerout', () => {
+                continueBtnContainer.setScale(1.0);
+                continueBtnBg.clear();
+                continueBtnBg.fillStyle(0xf18c8e, 1);
+                continueBtnBg.fillRoundedRect(-90, -22, 180, 45, 12);
+                continueBtnBg.lineStyle(3, 0xffffff, 1);
+                continueBtnBg.strokeRoundedRect(-90, -22, 180, 45, 12);
+            });
+
+            this.bubbleGroup.add(continueBtnContainer);
+
+            continueBtnContainer.on('pointerdown', () => {
                 this.scene.start('BriefingScene', { result: null });
             });
         });
@@ -694,20 +770,6 @@ class DesignScene extends Phaser.Scene {
             document.getElementById('resident-name').innerText = commission.residentName;
             document.getElementById('brief-text').innerText = commission.brief;
 
-            // Add handler for Done button
-            const submitBtn = document.getElementById('submit-btn');
-    if (submitBtn) {
-        // Clear old handlers before setting a new one
-        submitBtn.onclick = null;
-        submitBtn.onclick = (e) => {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            console.log("Submit button clicked via onclick");
-            if (window.submitGame) window.submitGame(e);
-        };
-    }
 
             // Set room background via CSS for 100% stability
             const container = document.getElementById('game-container');
@@ -747,6 +809,59 @@ class DesignScene extends Phaser.Scene {
         if (this.isSpaceFree(mirrorX, mirrorY, mirrorSize.w, mirrorSize.h, null, 'right')) {
             this.addFurnitureObject(mirrorX, mirrorY, 'Mirror', 0xe0e0e0, 'right');
         }
+
+        // New Phaser "Done!" button (matches SHOP button style)
+        const doneBtnContainer = this.add.container(400, 460).setDepth(1000);
+        
+        const doneBtnBg = this.add.graphics();
+        doneBtnBg.fillStyle(0xf18c8e, 1);
+        doneBtnBg.fillRoundedRect(-60, -20, 120, 40, 12);
+        doneBtnBg.lineStyle(3, 0xffffff, 1);
+        doneBtnBg.strokeRoundedRect(-60, -20, 120, 40, 12);
+        
+        const doneBtnText = this.add.text(0, 0, 'DONE!', { 
+            color: '#ffffff', 
+            fontSize: '18px', 
+            fontWeight: 'bold',
+            fontFamily: 'Arial Black'
+        }).setOrigin(0.5);
+        
+        doneBtnContainer.add([doneBtnBg, doneBtnText]);
+        
+        doneBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-60, -20, 120, 40), Phaser.Geom.Rectangle.Contains);
+        doneBtnContainer.useHandCursor = true;
+        
+        // Floating animation
+        this.tweens.add({
+            targets: doneBtnContainer,
+            y: 450,
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        
+        doneBtnContainer.on('pointerover', () => {
+            doneBtnContainer.setScale(1.1);
+            doneBtnBg.clear();
+            doneBtnBg.fillStyle(0xe07b7d, 1);
+            doneBtnBg.fillRoundedRect(-60, -20, 120, 40, 12);
+            doneBtnBg.lineStyle(3, 0xffffff, 1);
+            doneBtnBg.strokeRoundedRect(-60, -20, 120, 40, 12);
+        });
+        
+        doneBtnContainer.on('pointerout', () => {
+            doneBtnContainer.setScale(1.0);
+            doneBtnBg.clear();
+            doneBtnBg.fillStyle(0xf18c8e, 1);
+            doneBtnBg.fillRoundedRect(-60, -20, 120, 40, 12);
+            doneBtnBg.lineStyle(3, 0xffffff, 1);
+            doneBtnBg.strokeRoundedRect(-60, -20, 120, 40, 12);
+        });
+        
+        doneBtnContainer.on('pointerdown', () => {
+            if (window.submitGame) window.submitGame();
+        });
 
         this.updateUI();
 
