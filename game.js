@@ -181,6 +181,7 @@ class BriefingScene extends Phaser.Scene {
         this.load.image('rabbit', 'assets/floor_items/rabbit.png');
         this.load.image('agency_bg', 'assets/rooms/agency.png');
         this.load.image('shop_table', 'assets/rooms/shopTable.png');
+        this.load.image('tablee', 'assets/tablee.png');
         
         // Load all shop assets at once (so icons are visible)
         this.load.image('table2', 'assets/floor_items/table2.png');
@@ -203,29 +204,36 @@ class BriefingScene extends Phaser.Scene {
         bg.setDisplaySize(800, 500);
         bg.setDepth(0);
         
-        // Agency Counter
-        const counter = this.add.rectangle(400, 420, 600, 100, 0x8b7355);
-        counter.setStrokeStyle(4, 0x5f4b32);
-        counter.setDepth(10); // Counter must be ABOVE the character
-        this.add.text(400, 420, 'DECOR AGENCY', { color: '#fff', fontSize: '24px', fontWeight: 'bold' }).setOrigin(0.5).setDepth(11);
-
-        // Tip Jar
-        this.tipJar = this.add.container(650, 370);
-        const jar = this.add.rectangle(0, 0, 60, 80, 0xadd8e6, 0.5);
-        jar.setStrokeStyle(2, 0x5f4b32);
-        const jarLabel = this.add.text(0, 20, 'TIPS', { color: '#5f4b32', fontSize: '12px', fontWeight: 'bold' }).setOrigin(0.5);
-        this.tipJar.add([jar, jarLabel]);
-        this.tipJar.setDepth(15); // Place ON the counter
-
-        // Cash Register
-        this.register = this.add.container(150, 370);
-        const reg = this.add.rectangle(0, 0, 70, 50, 0x333);
-        const regLabel = this.add.text(0, 0, 'CASH', { color: '#fff', fontSize: '10px' }).setOrigin(0.5);
-        this.register.add([reg, regLabel]);
-        this.register.setDepth(15); // Place ON the counter
+        // Agency Counter (New combined asset)
+        const counter = this.add.image(400, 420, 'tablee');
+        counter.setDepth(10); 
+        // Scale it to fit within 800px width and avoid being cut off
+        if (counter.width > 800) {
+            counter.setDisplaySize(800, counter.height * (800 / counter.width));
+        }
+        // If it's still too tall, further scale it down (Increased height limit from 350 to 450)
+        if (counter.displayHeight > 350) {
+            counter.setDisplaySize(counter.displayWidth * (350 / counter.displayHeight), 350);
+        }
+        // Ensure it doesn't go out of the right bound
+        if (counter.x + counter.displayWidth / 2 > 800) {
+            counter.x = 800 - counter.displayWidth / 2;
+        }
+        // Ensure it doesn't go out of the left bound
+        if (counter.x - counter.displayWidth / 2 < 0) {
+            counter.x = counter.displayWidth / 2;
+        }
+        // Reposition to be at the bottom but fully visible, moving it even lower
+        counter.y = 500 - (counter.displayHeight * 0.35);
+        
+        // We define these as coordinates for animations, matching the tablee layout roughly
+        // Tips are usually on the right, Cash on the left in the tablee sprite
+        this.tipJar = { x: counter.x + (counter.displayWidth * 0.3), y: counter.y - (counter.displayHeight * 0.2) };
+        this.register = { x: counter.x - (counter.displayWidth * 0.3), y: counter.y - (counter.displayHeight * 0.2) };
 
         // Character (Resident)
-        const startX = this.result ? 450 : -100; // If there is a result, standing by the counter
+        const targetX = counter.x; // Align with the counter's center
+        const startX = this.result ? targetX : -100; // If there is a result, standing by the counter
         const characterContainer = this.add.container(startX, 320);
         
         // Using rabbit sprite instead of circles
@@ -268,12 +276,20 @@ class BriefingScene extends Phaser.Scene {
         });
 
         // Buttons (INSIDE BUBBLE)
-        const btnBg = this.add.rectangle(550, 225, 180, 45, 0x8fb9a8).setInteractive({ useHandCursor: true });
+        const btnBg = this.add.graphics();
+        btnBg.fillStyle(0xf18c8e, 1); // Pink/Red for action buttons
+        btnBg.fillRoundedRect(460, 202, 180, 45, 8); // Radius 8
+        btnBg.lineStyle(2, 0xe07b7d, 1);
+        btnBg.strokeRoundedRect(460, 202, 180, 45, 8);
+        
+        const btnHitArea = new Phaser.Geom.Rectangle(0, 0, 180, 45);
+        const btnInteraction = this.add.zone(550, 225, 180, 45).setOrigin(0.5).setInteractive({ useHandCursor: true, hitArea: btnHitArea, hitAreaCallback: Phaser.Geom.Rectangle.Contains });
+
         let btnLabel = this.result ? 'NEXT' : 'ACCEPT';
         
         const btnText = this.add.text(550, 225, btnLabel, { color: '#fff', fontSize: '16px', fontWeight: 'bold' }).setOrigin(0.5);
         
-        this.bubbleGroup.addMultiple([bubble, this.speechText, btnBg, btnText]);
+        this.bubbleGroup.addMultiple([bubble, this.speechText, btnBg, btnText, btnInteraction]);
         this.bubbleGroup.setVisible(false);
 
         // SHOP Button (Small sticker "SHOP")
@@ -297,7 +313,7 @@ class BriefingScene extends Phaser.Scene {
             // Animation: Character walking in (New Commission)
             this.tweens.add({
                 targets: characterContainer,
-                x: 450, 
+                x: targetX, 
                 duration: 2000,
                 ease: 'Power2',
                 onComplete: () => this.bubbleGroup.setVisible(true)
@@ -308,18 +324,9 @@ class BriefingScene extends Phaser.Scene {
             this.handleEconomyAnimation(this.result, characterContainer);
         }
 
-        btnBg.on('pointerdown', () => {
+        btnInteraction.on('pointerdown', () => {
             if (this.result) {
                 this.scene.start('BriefingScene', { result: null });
-            } else if (this.isAwaitingReview) {
-                this.handleReview(characterContainer);
-                btnBg.disableInteractive();
-                // We hide the button immediately so it can't be clicked twice
-                this.tweens.add({
-                    targets: [btnBg, btnText],
-                    alpha: 0,
-                    duration: 200
-                });
             } else {
                 this.scene.start('DesignScene');
             }
@@ -339,11 +346,19 @@ class BriefingScene extends Phaser.Scene {
         
         // Show "CONTINUE" button after a short delay inside the bubble
         this.time.delayedCall(500, () => {
-            const continueBtnBg = this.add.rectangle(550, 225, 180, 45, 0x8fb9a8).setInteractive({ useHandCursor: true });
+            const continueBtnBg = this.add.graphics();
+            continueBtnBg.fillStyle(0xf18c8e, 1);
+            continueBtnBg.fillRoundedRect(460, 202, 180, 45, 8);
+            continueBtnBg.lineStyle(2, 0xe07b7d, 1);
+            continueBtnBg.strokeRoundedRect(460, 202, 180, 45, 8);
+            
+            const btnHitArea = new Phaser.Geom.Rectangle(0, 0, 180, 45);
+            const continueBtnInteraction = this.add.zone(550, 225, 180, 45).setOrigin(0.5).setInteractive({ useHandCursor: true, hitArea: btnHitArea, hitAreaCallback: Phaser.Geom.Rectangle.Contains });
+            
             const continueBtnText = this.add.text(550, 225, 'NEXT', { color: '#fff', fontSize: '16px', fontWeight: 'bold' }).setOrigin(0.5);
-            this.bubbleGroup.addMultiple([continueBtnBg, continueBtnText]);
+            this.bubbleGroup.addMultiple([continueBtnBg, continueBtnText, continueBtnInteraction]);
 
-            continueBtnBg.on('pointerdown', () => {
+            continueBtnInteraction.on('pointerdown', () => {
                 this.scene.start('BriefingScene', { result: null });
             });
         });
