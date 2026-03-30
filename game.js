@@ -2,6 +2,10 @@ let furnitureItems = [];
 let currency = 0;
 let purchasedItems = new Set(); // Names of purchased items (those with suffix 2)
 let currentLevel = 0; // Current level (room index)
+let selectedRoom = 0; // Currently selected room index
+
+const ROOM_UNLOCKS = [0, 0, 100, 250, 450, 700, 1000, 1500]; // Min currency to unlock each room
+const ROOM_NAMES = ['Cozy Studio', 'Modern Apartment', 'Sunlit Loft', 'Garden Suite', 'Minimal Hideaway', 'Creative Space', 'Artist Studio', 'VIP Penthouse'];
 
 // Room template dimensions (obtained via `file` or `identify`)
 const ROOM_DIMENSIONS = [
@@ -10,7 +14,9 @@ const ROOM_DIMENSIONS = [
     { w: 1264, h: 842 },  // Shablon2.png
     { w: 1536, h: 1024 }, // Shablon3.png
     { w: 1536, h: 1024 }, // Shablon4.png
-    { w: 1248, h: 832 }   // Shablon5.png
+    { w: 1248, h: 832 },  // Shablon5.png
+    { w: 1536, h: 1024 }, // artistStudio
+    { w: 1536, h: 1024 }  // penthouse
 ];
 
 const ROOM_TEMPLATES = [
@@ -19,51 +25,156 @@ const ROOM_TEMPLATES = [
     'assets/rooms/Shablon2.png',
     'assets/rooms/Shablon3.png',
     'assets/rooms/Shablon4.png',
-    'assets/rooms/Shablon5.png'
+    'assets/rooms/Shablon5.png',
+    'assets/rooms/Shablon3.png', // Reuse for now
+    'assets/rooms/Shablon4.png'  // Reuse for now
 ];
+
+const ITEM_VIBES = {
+    'Plant': ['cozy', 'nature', 'fresh'],
+    'Lamp': ['cozy', 'light', 'warm'],
+    'Chair': ['office', 'basic'],
+    'Table': ['office', 'basic'],
+    'Bed': ['cozy', 'relax'],
+    'Closet': ['storage', 'basic'],
+    'Window': ['light', 'fresh'],
+    'Mirror': ['fancy', 'light'],
+    'Table2': ['office', 'fancy', 'modern'],
+    'Chair2': ['office', 'fancy', 'modern'],
+    'Flower2': ['cozy', 'nature', 'fancy'],
+    'Puffic2': ['cozy', 'relax', 'fancy'],
+    'Stairs2': ['vintage', 'fancy'],
+    'Mirror2': ['fancy', 'modern'],
+    'Clock2': ['vintage', 'fancy'],
+    'Shell2': ['storage', 'fancy', 'modern']
+};
 
 const COMMISSIONS = [
     {
         residentName: "Kamaliia",
-        brief: "Hi! I need a cozy studio. Could you add a plant and a lamp? And please, throw away this old chair, it's driving me crazy!",
+        residentType: "rabbit",
+        brief: "Hi! I need a cozy studio. Can you add a plant and a lamp? And please, throw out this old chair, it annoys me!",
         requiredAdd: ["Plant", "Lamp"],
-        requiredRemove: ["Old Chair"],
-        reward: 100
+        requiredRemove: ["Chair"],
+        requiredVibe: "cozy",
+        reward: 80
+    },
+    {
+        residentName: "Mia",
+        residentType: "rabbit",
+        brief: "Just a small update — add a plant and move things around. Oh, and you can remove the mirror, it's too fancy for me.",
+        requiredAdd: ["Plant"],
+        requiredRemove: ["Mirror"],
+        requiredVibe: "nature",
+        reward: 80
     },
     {
         residentName: "Aleksey",
-        brief: "I want a workspace! Place a table and a chair. And remove that plant, I have an allergy.",
+        residentType: "bear",
+        brief: "I want a workspace! Put in a table and a chair. And take away that plant, I have an allergy to it.",
         requiredAdd: ["Table", "Chair"],
         requiredRemove: ["Plant"],
+        requiredVibe: "office",
         reward: 100
     },
     {
         residentName: "Elena",
-        brief: "I need more light! Add a lamp and a window. The old closet is no longer needed.",
+        residentType: "cat",
+        brief: "I need more light! Add a lamp and a window. I don't need the old closet anymore.",
         requiredAdd: ["Lamp", "Window"],
         requiredRemove: ["Closet"],
+        requiredVibe: "light",
+        reward: 100
+    },
+    {
+        residentName: "Luka",
+        residentType: "dog",
+        brief: "I finally got a real bed! Please put it in and add a reading lamp. The old chair takes up too much space.",
+        requiredAdd: ["Lamp", "Bed"],
+        requiredRemove: ["Chair"],
+        requiredVibe: "relax",
+        reward: 100
+    },
+    {
+        residentName: "Nina",
+        residentType: "cat",
+        brief: "I want a strict and practical look. Add a table and a closet. And get rid of that plant — I always forget to water it.",
+        requiredAdd: ["Table", "Closet"],
+        requiredRemove: ["Plant"],
+        requiredVibe: "basic",
         reward: 100
     },
     {
         residentName: "Dmitry",
-        brief: "Make a relaxation room! A bed and a mirror are exactly what I need. And throw out this table.",
+        residentType: "bear",
+        brief: "Make it a room for relaxation! A bed and a mirror are exactly what I need. And throw out this table.",
         requiredAdd: ["Bed", "Mirror"],
         requiredRemove: ["Table"],
-        reward: 100
+        requiredVibe: "relax",
+        reward: 120
     },
     {
         residentName: "Sophia",
-        brief: "I love plants! Place two plants and a chair. I don't like the old lamp.",
+        residentType: "rabbit",
+        brief: "I love plants! Put in two plants and a chair. I don't like the old lamp.",
         requiredAdd: ["Plant", "Plant", "Chair"],
         requiredRemove: ["Lamp"],
-        reward: 100
+        requiredVibe: "nature",
+        reward: 120
+    },
+    {
+        residentName: "Artem",
+        residentType: "dog",
+        brief: "Create a calm, airy atmosphere for me. A mirror and a plant will do wonders. And please, remove the bed, I'm moving into a hammock outside!",
+        requiredAdd: ["Mirror", "Plant"],
+        requiredRemove: ["Bed"],
+        requiredVibe: "fresh",
+        reward: 120
     },
     {
         residentName: "Victor",
-        brief: "I need an office. A closet and a table are a must. And remove the bed.",
+        residentType: "fox",
+        brief: "I need an office. A closet and a table are required. And remove the bed.",
         requiredAdd: ["Closet", "Table"],
         requiredRemove: ["Bed"],
-        reward: 100
+        requiredVibe: "office",
+        reward: 150
+    },
+    {
+        residentName: "Zara",
+        residentType: "cat",
+        brief: "I want it to be cozy and green! Add a bed, a plant, and a lamp. That table has to go — too much clutter.",
+        requiredAdd: ["Bed", "Plant", "Lamp"],
+        requiredRemove: ["Table"],
+        requiredVibe: "cozy",
+        reward: 150
+    },
+    {
+        residentName: "Max",
+        residentType: "fox",
+        brief: "Let's make everything as stylish as possible. A chair, a table AND a mirror. The closet is bulky and ugly — take it away.",
+        requiredAdd: ["Chair", "Table", "Mirror"],
+        requiredRemove: ["Closet"],
+        requiredVibe: "fancy",
+        reward: 150
+    },
+    {
+        residentName: "Oink",
+        residentType: "pig",
+        brief: "I love pink! Could you add a chair and a plant? Also, please remove that boring old table.",
+        requiredAdd: ["Chair", "Plant"],
+        requiredRemove: ["Table"],
+        requiredVibe: "cozy",
+        reward: 150
+    },
+    {
+        residentName: "Penny",
+        residentType: "pig",
+        brief: "I need a place to study. Add a table and a lamp. The old chair is just in the way.",
+        requiredAdd: ["Table", "Lamp"],
+        requiredRemove: ["Chair"],
+        requiredVibe: "office",
+        reward: 180
     }
 ];
 
@@ -82,6 +193,102 @@ const SHOP_ITEMS = [
     { name: 'Clock2', price: 20, type: 'wall', texture: 'clock2', displayName: 'Clock 2' },
     { name: 'Shell2', price: 20, type: 'wall', texture: 'shell2', displayName: 'Shelf 2' }
 ];
+
+// --- Scene: Room Selection ---
+class RoomSelectScene extends Phaser.Scene {
+    constructor() {
+        super('RoomSelectScene');
+    }
+
+    preload() {
+        const version = Date.now();
+        ROOM_TEMPLATES.forEach((path, i) => {
+            this.load.image(`room_thumb_${i}`, path + '?v=' + version);
+        });
+    }
+
+    create() {
+        if (document.getElementById('ui-panel')) {
+            document.getElementById('ui-panel').style.display = 'none';
+        }
+
+        // Background
+        const bg = this.add.image(400, 250, 'agency_bg');
+        bg.setDisplaySize(800, 500);
+        bg.setAlpha(0.4);
+
+        // Title
+        this.add.text(400, 40, 'Choose a Room', {
+            fontSize: '26px',
+            fontFamily: 'Arial Black',
+            color: '#5f3b2b',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Currency display
+        this.add.text(720, 40, `Coins: ${currency}`, {
+            fontSize: '15px',
+            fontFamily: 'Arial',
+            color: '#5f3b2b',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Cards: 2 rows × 3 cols
+        const cols = [150, 400, 650];
+        const rows = [190, 360];
+        const cardW = 210, cardH = 125;
+
+        ROOM_TEMPLATES.forEach((_, i) => {
+            const cx = cols[i % 3];
+            const cy = rows[Math.floor(i / 3)];
+            const unlocked = currency >= ROOM_UNLOCKS[i];
+
+            const card = this.add.graphics();
+            if (unlocked) {
+                card.fillStyle(0xfff5e6, 1);
+                card.lineStyle(3, 0xf18c8e, 1);
+            } else {
+                card.fillStyle(0xdddddd, 1);
+                card.lineStyle(3, 0xaaaaaa, 1);
+            }
+            card.fillRoundedRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH, 12);
+            card.strokeRoundedRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH, 12);
+
+            // Room name
+            this.add.text(cx, cy - 22, ROOM_NAMES[i], {
+                fontSize: '14px',
+                fontFamily: 'Arial Black',
+                color: unlocked ? '#5f3b2b' : '#888888',
+                fontStyle: 'bold',
+                wordWrap: { width: cardW - 20 },
+                align: 'center'
+            }).setOrigin(0.5);
+
+            if (unlocked) {
+                const btn = this.add.text(cx, cy + 28, 'SELECT', {
+                    fontSize: '13px',
+                    fontFamily: 'Arial Black',
+                    color: '#ffffff',
+                    backgroundColor: '#f18c8e',
+                    padding: { x: 14, y: 7 }
+                }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+                btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#e07b7d' }));
+                btn.on('pointerout', () => btn.setStyle({ backgroundColor: '#f18c8e' }));
+                btn.on('pointerdown', () => {
+                    selectedRoom = i;
+                    this.scene.start('BriefingScene', { result: null });
+                });
+            } else {
+                this.add.text(cx, cy + 28, `Need ${ROOM_UNLOCKS[i]} coins`, {
+                    fontSize: '12px',
+                    fontFamily: 'Arial',
+                    color: '#999999'
+                }).setOrigin(0.5);
+            }
+        });
+    }
+}
 
 // --- Scene: Shop ---
 class ShopScene extends Phaser.Scene {
@@ -246,21 +453,27 @@ class BriefingScene extends Phaser.Scene {
     }
 
     preload() {
-        // Load rabbit character and agency background
-        this.load.image('rabbit', 'assets/floor_items/rabbit.png');
-        this.load.image('agency_bg', 'assets/rooms/agency.png');
-        this.load.image('tablee', 'assets/tablee.png');
+        const version = Date.now();
+        this.load.image('agency_bg', 'assets/rooms/agency.png?v=' + version);
+        this.load.image('tablee', 'assets/tablee.png?v=' + version);
+
+        // Load all residents from the new folder
+        this.load.image('rabbit', 'assets/custumers/rabbit.png?v=' + version);
+        this.load.image('bear', 'assets/custumers/bear.png?v=' + version);
+        this.load.image('cat', 'assets/custumers/cat.png?v=' + version);
+        this.load.image('dog', 'assets/custumers/dog.png?v=' + version);
+        this.load.image('fox', 'assets/custumers/fox.png?v=' + version);
+        this.load.image('pig', 'assets/custumers/pig.png?v=' + version);
         
         // Load all shop assets from right_view (per requirements)
-        const version = Date.now();
         this.load.image('table2', 'assets/floor_items/right_view/table2.png?v=' + version);
         this.load.image('chair2', 'assets/floor_items/right_view/chair2.png?v=' + version);
         this.load.image('flower2', 'assets/floor_items/right_view/flower2.png?v=' + version);
         this.load.image('puffic2', 'assets/floor_items/right_view/puffic2.png?v=' + version);
         this.load.image('stairs2', 'assets/floor_items/right_view/stairs2.png?v=' + version);
-        this.load.image('mirror2', 'assets/wall_items/right_view/mirror.png?v=' + version); // Note: file name might be mirror.png in folder
+        this.load.image('mirror2', 'assets/wall_items/right_view/mirror.png?v=' + version); 
         this.load.image('clock2', 'assets/wall_items/right_view/clock2.png?v=' + version);
-        this.load.image('shell2', 'assets/wall_items/right_view/shelf2.png?v=' + version); // Note: file name is shelf2.png
+        this.load.image('shell2', 'assets/wall_items/right_view/shelf2.png?v=' + version);
     }
 
     create() {
@@ -301,22 +514,24 @@ class BriefingScene extends Phaser.Scene {
         this.register = { x: counter.x - (counter.displayWidth * 0.3), y: counter.y - (counter.displayHeight * 0.2) };
 
         // Character (Resident)
+        const commission = getCurrentCommission();
         const targetX = counter.x; // Align with the counter's center
         const startX = this.result ? targetX : -100; // If there is a result, standing by the counter
         const characterContainer = this.add.container(startX, 320);
         
-        // Using rabbit sprite instead of circles
-        const rabbit = this.add.image(0, 50, 'rabbit'); // Move rabbit lower in container
-        rabbit.setScale(0.5); 
+        // Using resident-specific sprite
+        const residentTexture = commission.residentType || 'rabbit';
+        const resident = this.add.image(0, 40, residentTexture); 
+        resident.setScale(0.6); 
         
-        if (this.result === 'failure') {
-            rabbit.setTint(0x888888); 
+        if (this.result && this.result.score < 50) {
+            resident.setTint(0x888888); 
         }
         
-        characterContainer.add([rabbit]);
-        characterContainer.setDepth(5); // Character BELOW the counter
+        characterContainer.add([resident]);
+        characterContainer.setDepth(5); 
         
-        this.characterSprite = rabbit; // Save reference for animation
+        this.characterSprite = resident; 
 
         // Speech Bubble Group
         this.bubbleGroup = this.add.group();
@@ -334,9 +549,47 @@ class BriefingScene extends Phaser.Scene {
         bubble.fillPath();
         bubble.strokePath();
 
-        let message = getCurrentCommission().brief;
-        if (this.result === 'success') message = "This is simply magnificent! Here are your tips!";
-        else if (this.result === 'failure') message = "Terrible... I'm taking my money back!";
+        let message = commission.brief;
+        if (this.result) {
+            const score = Math.round(this.result.score);
+            const statusText = this.result.score >= 80 ? "EXCELLENT!" : (this.result.score >= 50 ? "GOOD" : "TERRIBLE...");
+            
+            if (this.result.isBinary) {
+                if (this.result.score >= 80) {
+                    message = `EXCELLENT!\n\nThis is just great! You did exactly what I asked. Here is your reward!`;
+                } else {
+                    message = `TERRIBLE...\n\nThis is not what I asked for at all. I'm taking my money back!`;
+                }
+            } else {
+                message = `${statusText}\nScore: ${score}%\n\n`;
+                
+                if (this.result.score >= 100) message += "This is just great! You matched the mood perfectly. Here is your tip!";
+                else if (this.result.score >= 80) message += "I really like it! Almost everything is as I wanted. Thank you!";
+                else if (this.result.score >= 50) message += "Not bad, but something is missing. Try harder next time.";
+                else message += "Terrible... This is not what I asked for at all. I'm taking my money back!";
+
+                // Detailed breakdown
+                const hardScore = Math.round(score - (this.result.vibeBonus || 0));
+                const vibeBonus = Math.round(this.result.vibeBonus || 0);
+                message += `\n(Base: ${hardScore}%`;
+                if (vibeBonus > 0) message += `, Style Bonus: +${vibeBonus}%`;
+                message += `)`;
+            }
+
+            // Progress Bar Background
+            const barBg = this.add.graphics();
+            barBg.fillStyle(0xeeeeee, 1);
+            barBg.fillRoundedRect(375, 235, 350, 15, 7);
+            this.bubbleGroup.add(barBg);
+
+            // Progress Bar Fill
+            const barFill = this.add.graphics();
+            const barColor = this.result.score >= 80 ? 0x8fb9a8 : (this.result.score >= 50 ? 0xffcc00 : 0xf18c8e);
+            barFill.fillStyle(barColor, 1);
+            const fillWidth = Math.max(10, (score / 110) * 350);
+            barFill.fillRoundedRect(375, 235, fillWidth, 15, 7);
+            this.bubbleGroup.add(barFill);
+        }
 
         this.speechText = this.add.text(375, 105, message, {
             color: '#5f4b32',
@@ -422,15 +675,7 @@ class BriefingScene extends Phaser.Scene {
         shopContainer.setInteractive(shopHitArea, Phaser.Geom.Rectangle.Contains);
         shopContainer.useHandCursor = true;
         
-        // Floating animation for the sign
-        this.tweens.add({
-            targets: shopContainer,
-            y: 60,
-            duration: 1500,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
+        // No floating animation for shop button
 
         shopContainer.on('pointerover', () => {
             shopContainer.setScale(1.1);
@@ -478,7 +723,8 @@ class BriefingScene extends Phaser.Scene {
 
         btnContainer.on('pointerdown', () => {
             if (this.result) {
-                this.scene.start('BriefingScene', { result: null });
+                currentLevel++; // Move to next level only when clicking NEXT
+                this.scene.start('RoomSelectScene');
             } else {
                 this.scene.start('DesignScene');
             }
@@ -487,10 +733,15 @@ class BriefingScene extends Phaser.Scene {
 
     handleReview(character) {
         // Show reaction directly
-        if (this.result === 'success') {
-            this.speechText.setText("This is simply magnificent! Here are your tips!");
+        const score = this.result ? this.result.score : 0;
+        if (score >= 100) {
+            this.speechText.setText("It's absolutely magnificent! You perfectly captured the mood. Here's your tip!");
+        } else if (score >= 80) {
+            this.speechText.setText("I really like it! It's almost everything I wanted. Thank you!");
+        } else if (score >= 50) {
+            this.speechText.setText("Not bad, but something is missing. Try harder next time.");
         } else {
-            this.speechText.setText("Terrible... I'm taking my money back!");
+            this.speechText.setText("Terrible... This is not what I asked for at all. I'm taking my money back!");
             if (this.characterSprite) this.characterSprite.setTint(0x888888); 
         }
 
@@ -550,17 +801,23 @@ class BriefingScene extends Phaser.Scene {
             this.bubbleGroup.add(continueBtnContainer);
 
             continueBtnContainer.on('pointerdown', () => {
-                this.scene.start('BriefingScene', { result: null });
+                currentLevel++; // Move to next level here
+                this.scene.start('RoomSelectScene');
             });
         });
     }
 
     handleEconomyAnimation(result, character) {
-        const coin = this.add.circle(character.x, character.y - 20, 10, 0xffd700);
-        coin.setStrokeStyle(2, 0x5f4b32);
-        coin.setDepth(20); // Coin must fly ABOVE everything
+        if (!result) return;
         
-        if (result === 'success') {
+        const score = result.score;
+        const reward = result.reward || 0;
+        
+        if (reward > 0) {
+            const coin = this.add.circle(character.x, character.y - 20, 10, 0xffd700);
+            coin.setStrokeStyle(2, 0x5f4b32);
+            coin.setDepth(20);
+
             this.tweens.add({
                 targets: coin,
                 x: this.tipJar.x,
@@ -570,13 +827,14 @@ class BriefingScene extends Phaser.Scene {
                 onComplete: () => {
                     coin.destroy();
                     this.cameras.main.shake(100, 0.01);
-                    // Update counter after animation
                     this.currencyText.setText(`Coins: ${currency}`);
                 }
             });
-        } else {
-            // Move from register to character (taking money)
-            coin.setPosition(this.register.x, this.register.y);
+        } else if (reward < 0) {
+            const coin = this.add.circle(this.register.x, this.register.y, 10, 0xffd700);
+            coin.setStrokeStyle(2, 0x5f4b32);
+            coin.setDepth(20);
+
             this.tweens.add({
                 targets: coin,
                 x: character.x,
@@ -597,7 +855,7 @@ const ITEM_SIZES = {
     'Old Chair': { w: 1, h: 1 },
     'Table': { w: 2, h: 2 },
     'Bed': { w: 2, h: 2 },
-    'Closet': { w: 2, h: 1 },
+    'Closet': { w: 2, h: 2 },
     'Window': { w: 2, h: 2 },
     'Mirror': { w: 1, h: 2 },
     'Table2': { w: 2, h: 2 },
@@ -682,7 +940,7 @@ let SURFACES = {};
 
 // --- Grid Occupancy Matrix ---
 const GRID_OCCUPANCY = {
-    floor: Array(10).fill().map(() => Array(10).fill(null)),
+    floor: Array(12).fill().map(() => Array(12).fill(null)),
     left: Array(10).fill().map(() => Array(10).fill(null)),
     right: Array(10).fill().map(() => Array(10).fill(null))
 };
@@ -704,7 +962,7 @@ function updateOccupancy(item, clear = false) {
 // --- Scene: Design ---
 
 function resetOccupancy() {
-    GRID_OCCUPANCY.floor = Array(10).fill().map(() => Array(10).fill(null));
+    GRID_OCCUPANCY.floor = Array(12).fill().map(() => Array(12).fill(null));
     GRID_OCCUPANCY.left = Array(10).fill().map(() => Array(10).fill(null));
     GRID_OCCUPANCY.right = Array(10).fill().map(() => Array(10).fill(null));
 }
@@ -717,7 +975,7 @@ class DesignScene extends Phaser.Scene {
     preload() {
         // Load room template (add version for cache busting)
         const version = Date.now();
-        const roomImg = ROOM_TEMPLATES[currentLevel % ROOM_TEMPLATES.length];
+        const roomImg = ROOM_TEMPLATES[selectedRoom];
         this.load.image('room_bg', roomImg + '?v=' + version);
         
         // Load new furniture (left and right views)
@@ -773,7 +1031,7 @@ class DesignScene extends Phaser.Scene {
 
             // Set room background via CSS for 100% stability
             const container = document.getElementById('game-container');
-            const roomImg = ROOM_TEMPLATES[currentLevel % ROOM_TEMPLATES.length];
+            const roomImg = ROOM_TEMPLATES[selectedRoom];
             container.style.backgroundImage = `url('${roomImg}?v=${Date.now()}')`;
             
             // Dynamic inventory button list update
@@ -831,15 +1089,7 @@ class DesignScene extends Phaser.Scene {
         doneBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-60, -20, 120, 40), Phaser.Geom.Rectangle.Contains);
         doneBtnContainer.useHandCursor = true;
         
-        // Floating animation
-        this.tweens.add({
-            targets: doneBtnContainer,
-            y: 450,
-            duration: 1500,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
+        // No floating animation for done button
         
         doneBtnContainer.on('pointerover', () => {
             doneBtnContainer.setScale(1.1);
@@ -900,29 +1150,78 @@ class DesignScene extends Phaser.Scene {
 
             console.log("Submitting game logic execution...");
             const commission = getCurrentCommission();
-            const hasAdditions = commission.requiredAdd.every(req => 
-                furnitureItems.some(item => item.name.toLowerCase().includes(req.toLowerCase()))
-            );
-            const hasRemovals = !furnitureItems.some(item => 
+            
+            // 1. Check Hard Requirements (Add/Remove)
+            let score = 0;
+            const totalHard = commission.requiredAdd.length + commission.requiredRemove.length;
+            let metHard = 0;
+
+            // Check Additions (exact match or includes)
+            const currentItemNames = furnitureItems.map(it => it.name.toLowerCase());
+            commission.requiredAdd.forEach(req => {
+                const idx = currentItemNames.findIndex(name => name.includes(req.toLowerCase()));
+                if (idx !== -1) {
+                    metHard++;
+                    currentItemNames.splice(idx, 1); // Use each item only once for requirements
+                }
+            });
+
+            // Check Removals
+            const hasForbidden = furnitureItems.some(item => 
                 commission.requiredRemove.some(req => item.name.toLowerCase().includes(req.toLowerCase()))
             );
+            if (!hasForbidden) metHard += commission.requiredRemove.length;
 
-            const result = (hasAdditions && hasRemovals) ? 'success' : 'failure';
+            const hardPercent = (metHard / totalHard) * 100;
             
-            if (result === 'success') {
-                currency += commission.reward;
-                currentLevel++; // Move to next room
-                // document.getElementById('currency-display').innerText = `Currency: ${currency}`;
+            // 2. Check Vibe (Mood) - Soft Requirement
+            let vibeBonus = 0;
+            if (commission.requiredVibe) {
+                const matchingItems = furnitureItems.filter(item => {
+                    const itemVibes = ITEM_VIBES[item.name] || [];
+                    return itemVibes.includes(commission.requiredVibe);
+                });
+                // Bonus based on count of matching vibe items
+                vibeBonus = Math.min(20, matchingItems.length * 5); 
+            }
+
+            score = hardPercent + vibeBonus;
+            score = Math.min(110, score); // Max score with bonus is 110%
+
+            // Apply binary evaluation for Level 1 (currentLevel === 0)
+            if (currentLevel === 0) {
+                if (score >= 80) score = 100;
+                else score = 0;
+            }
+
+            let finalReward = 0;
+            let status = 'failure';
+
+            if (score >= 80) {
+                finalReward = commission.reward + (score > 100 ? 20 : 0);
+                status = 'success';
+                currency += finalReward;
+            } else if (score >= 50) {
+                finalReward = Math.floor(commission.reward * 0.5);
+                status = 'partial';
+                currency += finalReward;
+            } else {
+                finalReward = -20; // Penalty
+                status = 'failure';
+                currency = Math.max(0, currency + finalReward);
             }
 
             // Transition to agency hall with IMMEDIATELY visible result
             const feedbackEl = document.getElementById('feedback');
             if (feedbackEl) {
                 feedbackEl.style.display = 'block';
-                feedbackEl.innerText = result === 'success' ? "Great! Design accepted." : "Client is not quite happy. Check requirements.";
+                if (score >= 80) feedbackEl.innerText = `Excellent! Score: ${Math.round(score)}%`;
+                else if (score >= 50) feedbackEl.innerText = `Acceptable. Score: ${Math.round(score)}%`;
+                else feedbackEl.innerText = `Poor... Score: ${Math.round(score)}%`;
+                
                 setTimeout(() => { feedbackEl.style.display = 'none'; }, 3000);
             }
-            this.scene.start('BriefingScene', { result: result });
+            this.scene.start('BriefingScene', { result: { score: score, reward: finalReward, status: status, vibeBonus: vibeBonus, isBinary: currentLevel === 0 } });
         };
     }
 
@@ -971,7 +1270,18 @@ class DesignScene extends Phaser.Scene {
 
     screenToIso(x, y, isWallItem) {
         if (!isWallItem) {
-            const res = SURFACES.floor.worldToGrid(x, y);
+            const s = SURFACES.floor;
+            const dx = x - s.origin.x;
+            const dy = y - s.origin.y;
+            // Cross products against the two floor-wall junction edges.
+            // Left junction (floor0→l_floor): cross > 0 means cursor is in left wall area.
+            const crossLeft  = (s.basisY.x * s.rows) * dy - (s.basisY.y * s.rows) * dx;
+            // Right junction (floor0→r_floor): cross < 0 means cursor is in right wall area.
+            const crossRight = (s.basisX.x * s.cols) * dy - (s.basisX.y * s.cols) * dx;
+            if (crossLeft > 0 || crossRight < 0) {
+                return { gridX: -1, gridY: -1 };
+            }
+            const res = s.worldToGrid(x, y);
             return { gridX: res.gridX, gridY: res.gridY };
         } else {
             // Determine which wall is closer
@@ -1198,7 +1508,7 @@ class DesignScene extends Phaser.Scene {
         
         container.addAt(visual, 0);
         visual.setOrigin(0.5, 0.5);
-        visual.y = 0; 
+        visual.y = 0;
 
         // Arrows for floor items
         const isNoRotateItem = (name === 'Lamp' || name === 'Plant' || name === 'Flower2');
@@ -1424,7 +1734,7 @@ const config = {
     height: 500,
     parent: 'game-container',
     transparent: true, // Make Phaser transparent to see CSS background
-    scene: [BriefingScene, DesignScene, ShopScene]
+    scene: [BriefingScene, DesignScene, ShopScene, RoomSelectScene]
 };
 
 const game = new Phaser.Game(config);
