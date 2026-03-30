@@ -1,11 +1,29 @@
 let furnitureItems = [];
 let currency = 0;
+let reputation = 1; // Reputation level, starts at 1
 let purchasedItems = new Set(); // Names of purchased items (those with suffix 2)
-let currentLevel = 0; // Current level (room index)
+let currentLevel = 0; // Current level (order index)
 let selectedRoom = 0; // Currently selected room index
+let maxSeenReputation = 1.0; // The highest reputation for which rooms have been seen
 
-const ROOM_UNLOCKS = [0, 0, 100, 250, 450, 700, 1000, 1500]; // Min currency to unlock each room
+// Rooms unlock based on reputation level: Level 2 -> Room 2, Level 3 -> Room 3, etc.
+const ROOM_UNLOCKS = [1, 2, 3, 4, 5, 6, 7, 8]; 
 const ROOM_NAMES = ['Cozy Studio', 'Modern Apartment', 'Sunlit Loft', 'Garden Suite', 'Minimal Hideaway', 'Creative Space', 'Artist Studio', 'VIP Penthouse'];
+
+function updateCurrencyUI(showReputation = true) {
+    const display = document.getElementById('currency-display');
+    const reputationText = document.getElementById('reputation-text');
+    const coinsText = document.getElementById('coins-text');
+    
+    if (display) {
+        display.style.display = 'block';
+        if (reputationText) {
+            reputationText.innerText = `Reputation: ${reputation.toFixed(1)}`;
+            reputationText.style.display = showReputation ? 'inline' : 'none';
+        }
+        if (coinsText) coinsText.innerText = `Coins: ${currency}`;
+    }
+}
 
 // Room template dimensions (obtained via `file` or `identify`)
 const ROOM_DIMENSIONS = [
@@ -208,9 +226,11 @@ class RoomSelectScene extends Phaser.Scene {
     }
 
     create() {
+        maxSeenReputation = reputation; // Mark all currently unlocked rooms as seen
         if (document.getElementById('ui-panel')) {
             document.getElementById('ui-panel').style.display = 'none';
         }
+        updateCurrencyUI(true);
 
         // Background
         const bg = this.add.image(400, 250, 'agency_bg');
@@ -225,23 +245,15 @@ class RoomSelectScene extends Phaser.Scene {
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        // Currency display
-        this.add.text(720, 40, `Coins: ${currency}`, {
-            fontSize: '15px',
-            fontFamily: 'Arial',
-            color: '#5f3b2b',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
         // Cards: 2 rows × 3 cols
-        const cols = [150, 400, 650];
-        const rows = [190, 360];
-        const cardW = 210, cardH = 125;
+        const cols = [150, 400, 650, 150, 400, 650, 150, 400];
+        const rows = [170, 170, 170, 310, 310, 310, 450, 450];
+        const cardW = 210, cardH = 110;
 
         ROOM_TEMPLATES.forEach((_, i) => {
-            const cx = cols[i % 3];
-            const cy = rows[Math.floor(i / 3)];
-            const unlocked = currency >= ROOM_UNLOCKS[i];
+            const cx = cols[i];
+            const cy = rows[i];
+            const unlocked = reputation >= ROOM_UNLOCKS[i];
 
             const card = this.add.graphics();
             if (unlocked) {
@@ -280,7 +292,7 @@ class RoomSelectScene extends Phaser.Scene {
                     this.scene.start('BriefingScene', { result: null });
                 });
             } else {
-                this.add.text(cx, cy + 28, `Need ${ROOM_UNLOCKS[i]} coins`, {
+                this.add.text(cx, cy + 28, `Need level ${ROOM_UNLOCKS[i]} reputation`, {
                     fontSize: '12px',
                     fontFamily: 'Arial',
                     color: '#999999'
@@ -297,6 +309,7 @@ class ShopScene extends Phaser.Scene {
     }
 
     create() {
+        updateCurrencyUI(true);
         const bg = this.add.image(400, 250, 'agency_bg');
         bg.setDisplaySize(800, 500);
         bg.setAlpha(0.3);
@@ -314,21 +327,6 @@ class ShopScene extends Phaser.Scene {
             fontWeight: 'bold',
             fontFamily: 'Arial Black'
         }).setOrigin(0.5);
-
-        // Currency display panel
-        const coinBg = this.add.graphics();
-        coinBg.fillStyle(0xffffff, 0.9);
-        coinBg.fillRoundedRect(620, 25, 160, 45, 15);
-        coinBg.lineStyle(2, 0xe6d5c3, 1);
-        coinBg.strokeRoundedRect(620, 25, 160, 45, 15);
-
-        this.add.circle(645, 47, 12, 0xffd700).setStrokeStyle(2, 0x5f4b32);
-
-        this.currencyText = this.add.text(665, 47, `${currency}`, { 
-            color: '#5f4b32', 
-            fontSize: '20px', 
-            fontWeight: 'bold' 
-        }).setOrigin(0, 0.5);
 
         // Product list
         const startX = 100;
@@ -387,7 +385,7 @@ class ShopScene extends Phaser.Scene {
                     if (currency >= item.price) {
                         currency -= item.price;
                         purchasedItems.add(item.name);
-                        this.currencyText.setText(`${currency}`);
+                        updateCurrencyUI();
                         buyBtnBg.clear();
                         buyBtnBg.fillStyle(0xcccccc, 1);
                         buyBtnBg.fillRoundedRect(-50, -15, 100, 30, 8);
@@ -415,7 +413,6 @@ class ShopScene extends Phaser.Scene {
             }
         });
 
-        // Кнопка BACK
         const backBtn = this.add.container(400, 460);
         const backBtnBg = this.add.graphics();
         backBtnBg.fillStyle(0x8fb9a8, 1);
@@ -480,6 +477,7 @@ class BriefingScene extends Phaser.Scene {
         if (document.getElementById('ui-panel')) {
             document.getElementById('ui-panel').style.display = 'none';
         }
+        updateCurrencyUI(true);
 
         // Background: Using the added agency background
         const bg = this.add.image(400, 250, 'agency_bg');
@@ -535,16 +533,21 @@ class BriefingScene extends Phaser.Scene {
 
         // Speech Bubble Group
         this.bubbleGroup = this.add.group();
+        const bubbleX = 350;
+        const bubbleY = 80;
+        const bubbleW = 400;
+        const bubbleH = 210; // Slightly taller
+        
         const bubble = this.add.graphics();
         bubble.fillStyle(0xffffff, 1);
-        bubble.fillRoundedRect(350, 80, 400, 180, 16);
+        bubble.fillRoundedRect(bubbleX, bubbleY, bubbleW, bubbleH, 16);
         bubble.lineStyle(2, 0xe6d5c3, 1);
-        bubble.strokeRoundedRect(350, 80, 400, 180, 16);
+        bubble.strokeRoundedRect(bubbleX, bubbleY, bubbleW, bubbleH, 16);
         
         bubble.beginPath();
-        bubble.moveTo(450, 260);
-        bubble.lineTo(430, 290);
-        bubble.lineTo(470, 260);
+        bubble.moveTo(450, bubbleY + bubbleH);
+        bubble.lineTo(430, bubbleY + bubbleH + 30);
+        bubble.lineTo(470, bubbleY + bubbleH);
         bubble.closePath();
         bubble.fillPath();
         bubble.strokePath();
@@ -558,7 +561,7 @@ class BriefingScene extends Phaser.Scene {
                 if (this.result.score >= 80) {
                     message = `EXCELLENT!\n\nThis is just great! You did exactly what I asked. Here is your reward!`;
                 } else {
-                    message = `TERRIBLE...\n\nThis is not what I asked for at all. I'm taking my money back!`;
+                    message = `TERRIBLE...\n\nThis is not what I asked for at all. Your reputation is suffering!`;
                 }
             } else {
                 message = `${statusText}\nScore: ${score}%\n\n`;
@@ -566,7 +569,7 @@ class BriefingScene extends Phaser.Scene {
                 if (this.result.score >= 100) message += "This is just great! You matched the mood perfectly. Here is your tip!";
                 else if (this.result.score >= 80) message += "I really like it! Almost everything is as I wanted. Thank you!";
                 else if (this.result.score >= 50) message += "Not bad, but something is missing. Try harder next time.";
-                else message += "Terrible... This is not what I asked for at all. I'm taking my money back!";
+                else message += "Terrible... This is not what I asked for at all. Your reputation is suffering!";
 
                 // Detailed breakdown
                 const hardScore = Math.round(score - (this.result.vibeBonus || 0));
@@ -577,28 +580,70 @@ class BriefingScene extends Phaser.Scene {
             }
 
             // Progress Bar Background
-            const barBg = this.add.graphics();
-            barBg.fillStyle(0xeeeeee, 1);
-            barBg.fillRoundedRect(375, 235, 350, 15, 7);
-            this.bubbleGroup.add(barBg);
+            if (!this.result.isBinary) {
+                const barBg = this.add.graphics();
+                barBg.fillStyle(0xeeeeee, 1);
+                barBg.fillRoundedRect(bubbleX + 25, bubbleY + bubbleH - 70, 350, 15, 7);
+                this.bubbleGroup.add(barBg);
 
-            // Progress Bar Fill
-            const barFill = this.add.graphics();
-            const barColor = this.result.score >= 80 ? 0x8fb9a8 : (this.result.score >= 50 ? 0xffcc00 : 0xf18c8e);
-            barFill.fillStyle(barColor, 1);
-            const fillWidth = Math.max(10, (score / 110) * 350);
-            barFill.fillRoundedRect(375, 235, fillWidth, 15, 7);
-            this.bubbleGroup.add(barFill);
+                // Progress Bar Fill
+                const barFill = this.add.graphics();
+                const barColor = this.result.score >= 80 ? 0x8fb9a8 : (this.result.score >= 50 ? 0xffcc00 : 0xf18c8e);
+                barFill.fillStyle(barColor, 1);
+                const fillWidth = Math.max(10, (score / 110) * 350);
+                barFill.fillRoundedRect(bubbleX + 25, bubbleY + bubbleH - 70, fillWidth, 15, 7);
+                this.bubbleGroup.add(barFill);
+            }
         }
 
-        this.speechText = this.add.text(375, 105, message, {
+        // Scrollable Text Container
+        const textMaskShape = this.add.graphics();
+        textMaskShape.fillStyle(0xffffff, 0);
+        textMaskShape.fillRoundedRect(bubbleX + 15, bubbleY + 15, bubbleW - 30, bubbleH - 85, 0);
+        const textMask = textMaskShape.createGeometryMask();
+
+        const textY = bubbleY + 25;
+        this.speechText = this.add.text(bubbleX + 25, textY, message, {
             color: '#5f4b32',
             fontSize: '16px',
             wordWrap: { width: 350 }
         });
+        this.speechText.setMask(textMask);
+        
+        // Interaction for scrolling
+        const scrollArea = new Phaser.Geom.Rectangle(bubbleX, bubbleY, bubbleW, bubbleH - 75);
+        this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+            if (scrollArea.contains(pointer.x, pointer.y)) {
+                this.speechText.y -= deltaY * 0.5;
+                this.clampTextScroll(textY, bubbleH - 100);
+            }
+        });
 
-        // Buttons (INSIDE BUBBLE)
-        const btnContainer = this.add.container(550, 225);
+        // Touch/Mouse drag scroll
+        let isDragging = false;
+        let startY = 0;
+        let startTextY = 0;
+        
+        this.input.on('pointerdown', (pointer) => {
+            if (scrollArea.contains(pointer.x, pointer.y)) {
+                isDragging = true;
+                startY = pointer.y;
+                startTextY = this.speechText.y;
+            }
+        });
+        
+        this.input.on('pointermove', (pointer) => {
+            if (isDragging) {
+                const diff = pointer.y - startY;
+                this.speechText.y = startTextY + diff;
+                this.clampTextScroll(textY, bubbleH - 100);
+            }
+        });
+        
+        this.input.on('pointerup', () => { isDragging = false; });
+
+        // Buttons (FIXED POSITION AT BOTTOM OF BUBBLE)
+        const btnContainer = this.add.container(bubbleX + bubbleW/2, bubbleY + bubbleH - 30);
         
         const btnBg = this.add.graphics();
         btnBg.fillStyle(0xf18c8e, 1);
@@ -623,7 +668,7 @@ class BriefingScene extends Phaser.Scene {
         // Floating animation
         this.tweens.add({
             targets: btnContainer,
-            y: 220,
+            y: bubbleY + bubbleH - 35,
             duration: 1500,
             yoyo: true,
             repeat: -1,
@@ -699,6 +744,88 @@ class BriefingScene extends Phaser.Scene {
             this.scene.start('ShopScene');
         });
 
+        // PLACES Button (Styled like Shop Button, below it)
+        const placesContainer = this.add.container(85, 115);
+        placesContainer.setDepth(100);
+        
+        const placesBg = this.add.graphics();
+        placesBg.fillStyle(0xf18c8e, 1);
+        placesBg.fillRoundedRect(-60, -25, 120, 50, 15);
+        placesBg.lineStyle(3, 0xffffff, 1);
+        placesBg.strokeRoundedRect(-60, -25, 120, 50, 15);
+        
+        const placesText = this.add.text(0, 0, 'PLACES', { 
+            color: '#ffffff', 
+            fontSize: '22px', 
+            fontWeight: 'bold',
+            fontFamily: 'Arial Black'
+        }).setOrigin(0.5, 0.5);
+        
+        placesContainer.add([placesBg, placesText]);
+
+        // Exclamation Mark (Notification)
+        // Only show if reputation has increased beyond what the player has seen
+        let hasNewRooms = false;
+        for (let i = 0; i < ROOM_UNLOCKS.length; i++) {
+            if (reputation >= ROOM_UNLOCKS[i] && maxSeenReputation < ROOM_UNLOCKS[i]) {
+                hasNewRooms = true;
+                break;
+            }
+        }
+
+        if (hasNewRooms) {
+            const notifyCircle = this.add.graphics();
+            notifyCircle.fillStyle(0xff0000, 1);
+            notifyCircle.fillCircle(55, -25, 12);
+            notifyCircle.lineStyle(2, 0xffffff, 1);
+            notifyCircle.strokeCircle(55, -25, 12);
+            
+            const notifyText = this.add.text(55, -25, '!', {
+                color: '#ffffff',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                fontFamily: 'Arial Black'
+            }).setOrigin(0.5);
+            
+            placesContainer.add([notifyCircle, notifyText]);
+
+            // Simple scale pulse for the whole button if it has a notification
+            this.tweens.add({
+                targets: placesContainer,
+                scale: 1.05,
+                duration: 800,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+        }
+        
+        const placesHitArea = new Phaser.Geom.Rectangle(-60, -25, 120, 50);
+        placesContainer.setInteractive(placesHitArea, Phaser.Geom.Rectangle.Contains);
+        placesContainer.useHandCursor = true;
+
+        placesContainer.on('pointerover', () => {
+            placesContainer.setScale(hasNewRooms ? 1.15 : 1.1);
+            placesBg.clear();
+            placesBg.fillStyle(0xe07b7d, 1);
+            placesBg.fillRoundedRect(-60, -25, 120, 50, 15);
+            placesBg.lineStyle(3, 0xffffff, 1);
+            placesBg.strokeRoundedRect(-60, -25, 120, 50, 15);
+        });
+        
+        placesContainer.on('pointerout', () => {
+            placesContainer.setScale(hasNewRooms ? 1.0 : 1.0);
+            placesBg.clear();
+            placesBg.fillStyle(0xf18c8e, 1);
+            placesBg.fillRoundedRect(-60, -25, 120, 50, 15);
+            placesBg.lineStyle(3, 0xffffff, 1);
+            placesBg.strokeRoundedRect(-60, -25, 120, 50, 15);
+        });
+
+        placesContainer.on('pointerdown', () => {
+            this.scene.start('RoomSelectScene');
+        });
+
         // Coins counter
         this.currencyText = this.add.text(780, 20, `Coins: ${currency}`, { 
             color: '#5f4b32', 
@@ -731,25 +858,65 @@ class BriefingScene extends Phaser.Scene {
         });
     }
 
+    clampTextScroll(startY, maxHeight) {
+        if (!this.speechText) return;
+        const textHeight = this.speechText.height;
+        if (textHeight <= maxHeight) {
+            this.speechText.y = startY;
+            return;
+        }
+        const minY = startY - (textHeight - maxHeight);
+        if (this.speechText.y > startY) this.speechText.y = startY;
+        if (this.speechText.y < minY) this.speechText.y = minY;
+    }
+
     handleReview(character) {
         // Show reaction directly
         const score = this.result ? this.result.score : 0;
+        let message = "";
         if (score >= 100) {
-            this.speechText.setText("It's absolutely magnificent! You perfectly captured the mood. Here's your tip!");
+            message = "It's absolutely magnificent! You perfectly captured the mood. Here's your tip!";
         } else if (score >= 80) {
-            this.speechText.setText("I really like it! It's almost everything I wanted. Thank you!");
+            message = "I really like it! It's almost everything I wanted. Thank you!";
         } else if (score >= 50) {
-            this.speechText.setText("Not bad, but something is missing. Try harder next time.");
+            message = "Not bad, but something is missing. Try harder next time.";
         } else {
-            this.speechText.setText("Terrible... This is not what I asked for at all. I'm taking my money back!");
+            message = "Terrible... This is not what I asked for at all. Your reputation is suffering!";
             if (this.characterSprite) this.characterSprite.setTint(0x888888); 
+        }
+
+        const scoreVal = Math.round(score);
+        const statusText = score >= 80 ? "EXCELLENT!" : (score >= 50 ? "GOOD" : "TERRIBLE...");
+        
+        let fullMessage = "";
+        if (this.result && this.result.isBinary) {
+            fullMessage = `${statusText}\n\n${message}`;
+        } else {
+            fullMessage = `${statusText}\nScore: ${scoreVal}%\n\n${message}`;
+            if (this.result) {
+                const hardScore = Math.round(scoreVal - (this.result.vibeBonus || 0));
+                const vibeBonus = Math.round(this.result.vibeBonus || 0);
+                fullMessage += `\n(Base: ${hardScore}%`;
+                if (vibeBonus > 0) fullMessage += `, Style Bonus: +${vibeBonus}%`;
+                fullMessage += `)`;
+            }
+        }
+        
+        if (this.speechText) {
+            this.speechText.setText(fullMessage);
+            this.speechText.y = 105; // Reset scroll
         }
 
         this.handleEconomyAnimation(this.result, character);
         
         // Show "CONTINUE" button after a short delay inside the bubble
         this.time.delayedCall(500, () => {
-            const continueBtnContainer = this.add.container(550, 225);
+            const bubbleX = 350;
+            const bubbleY = 80;
+            const bubbleW = 400;
+            const bubbleH = 210;
+            
+            const continueBtnContainer = this.add.container(bubbleX + bubbleW/2, bubbleY + bubbleH - 30);
             
             const continueBtnBg = this.add.graphics();
             continueBtnBg.fillStyle(0xf18c8e, 1);
@@ -773,7 +940,7 @@ class BriefingScene extends Phaser.Scene {
             // Floating animation
             this.tweens.add({
                 targets: continueBtnContainer,
-                y: 220,
+                y: bubbleY + bubbleH - 35,
                 duration: 1500,
                 yoyo: true,
                 repeat: -1,
@@ -798,7 +965,7 @@ class BriefingScene extends Phaser.Scene {
                 continueBtnBg.strokeRoundedRect(-90, -22, 180, 45, 12);
             });
 
-            this.bubbleGroup.add(continueBtnContainer);
+            if (this.bubbleGroup) this.bubbleGroup.add(continueBtnContainer);
 
             continueBtnContainer.on('pointerdown', () => {
                 currentLevel++; // Move to next level here
@@ -1022,6 +1189,7 @@ class DesignScene extends Phaser.Scene {
         
         if (document.getElementById('ui-panel')) {
             document.getElementById('ui-panel').style.display = 'block';
+            updateCurrencyUI(false);
             
             // Update brief
             const commission = getCurrentCommission();
@@ -1188,28 +1356,35 @@ class DesignScene extends Phaser.Scene {
             score = hardPercent + vibeBonus;
             score = Math.min(110, score); // Max score with bonus is 110%
 
-            // Apply binary evaluation for Level 1 (currentLevel === 0)
-            if (currentLevel === 0) {
+            // Apply binary evaluation for commissions without vibe requirements
+            const isBinary = !commission.requiredVibe;
+            if (isBinary) {
                 if (score >= 80) score = 100;
                 else score = 0;
             }
 
             let finalReward = 0;
             let status = 'failure';
+            let reputationChange = 0;
 
             if (score >= 80) {
-                finalReward = commission.reward + (score > 100 ? 20 : 0);
+                finalReward = commission.reward + (score > 100 ? 10 : 0);
                 status = 'success';
                 currency += finalReward;
+                reputationChange = (score > 100) ? 0.3 : 0.2;
             } else if (score >= 50) {
-                finalReward = Math.floor(commission.reward * 0.5);
+                finalReward = Math.floor(commission.reward * 0.4);
                 status = 'partial';
                 currency += finalReward;
+                reputationChange = 0.05;
             } else {
-                finalReward = -20; // Penalty
+                finalReward = 0; // No reward, but currency doesn't decrease anymore
                 status = 'failure';
-                currency = Math.max(0, currency + finalReward);
+                reputationChange = -0.2;
             }
+
+            reputation = Math.max(1, reputation + reputationChange);
+            updateCurrencyUI();
 
             // Transition to agency hall with IMMEDIATELY visible result
             const feedbackEl = document.getElementById('feedback');
@@ -1221,7 +1396,7 @@ class DesignScene extends Phaser.Scene {
                 
                 setTimeout(() => { feedbackEl.style.display = 'none'; }, 3000);
             }
-            this.scene.start('BriefingScene', { result: { score: score, reward: finalReward, status: status, vibeBonus: vibeBonus, isBinary: currentLevel === 0 } });
+            this.scene.start('BriefingScene', { result: { score: score, reward: finalReward, status: status, vibeBonus: vibeBonus, isBinary: isBinary } });
         };
     }
 
