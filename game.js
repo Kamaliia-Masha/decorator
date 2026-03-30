@@ -1049,14 +1049,14 @@ const ITEM_SIZES = {
     'Table': { w: 2, h: 2 },
     'Bed': { w: 2, h: 2 },
     'Closet': { w: 2, h: 2 },
-    'Window': { w: 2, h: 2 },
-    'Mirror': { w: 1, h: 2 },
+    'Window': { w: 2, h: 4 },
+    'Mirror': { w: 1, h: 4 },
     'Table2': { w: 2, h: 2 },
     'Chair2': { w: 1, h: 1 },
     'Flower2': { w: 1, h: 1 },
     'Puffic2': { w: 1, h: 1 },
-    'Stairs2': { w: 2, h: 2 },
-    'Mirror2': { w: 1, h: 2 },
+    'Stairs2': { w: 1, h: 1 },
+    'Mirror2': { w: 1, h: 4 },
     'Clock2': { w: 1, h: 1 },
     'Shell2': { w: 2, h: 1 }
 };
@@ -1472,6 +1472,15 @@ class DesignScene extends Phaser.Scene {
     screenToIso(x, y, isWallItem) {
         if (!isWallItem) {
             const s = SURFACES.floor;
+            const res = s.worldToGrid(x, y);
+            
+            // Critical: check grid boundaries for floor items (0-10)
+            // Fix: allow placing items in corners by increasing limit to s.cols/s.rows
+            if (res.gridX < -1 || res.gridX >= s.cols || res.gridY < -1 || res.gridY >= s.rows) {
+                // Return -1 to indicate out of bounds
+                return { gridX: -1, gridY: -1 };
+            }
+
             const dx = x - s.origin.x;
             const dy = y - s.origin.y;
             // Cross products against the two floor-wall junction edges.
@@ -1479,11 +1488,13 @@ class DesignScene extends Phaser.Scene {
             const crossLeft  = (s.basisY.x * s.rows) * dy - (s.basisY.y * s.rows) * dx;
             // Right junction (floor0→r_floor): cross < 0 means cursor is in right wall area.
             const crossRight = (s.basisX.x * s.cols) * dy - (s.basisX.y * s.cols) * dx;
-            if (crossLeft > 0 || crossRight < 0) {
+            
+            // Allow small buffer at walls for easier corner placement
+            if (crossLeft > 20 || crossRight < -20) {
                 return { gridX: -1, gridY: -1 };
             }
-            const res = s.worldToGrid(x, y);
-            return { gridX: res.gridX, gridY: res.gridY };
+
+            return { gridX: Math.max(0, res.gridX), gridY: Math.max(0, res.gridY) };
         } else {
             // Determine which wall is closer
             const localL = SURFACES.left.screenToLocal(x, y);
@@ -1501,13 +1512,20 @@ class DesignScene extends Phaser.Scene {
         }
     }
 
-    isSpaceFree(gridX, gridY, sizeW, sizeH, ignoreItem = null, wallSide = null) {
+    isSpaceFree(gridX, gridY, sizeW, sizeH, ignoreItem = null, wallSide = null, name = "") {
         const side = wallSide || 'floor';
         const surface = SURFACES[side];
         const matrix = GRID_OCCUPANCY[side];
 
+        const minCoord = 0;
+
         // Grid bounds check
-        if (gridX < 0 || gridY < 0 || gridX + sizeW > surface.cols || gridY + sizeH > surface.rows) return false;
+        if (gridX < minCoord || gridY < minCoord || gridX + sizeW > surface.cols || gridY + sizeH > surface.rows) return false;
+
+        // Restriction: Wall items cannot be placed at the corner (gridX = 0)
+        if (side === 'left' || side === 'right') {
+            if (gridX === 0) return false;
+        }
 
         // Matrix intersection check
         for (let y = gridY; y < gridY + sizeH; y++) {
@@ -1550,21 +1568,27 @@ class DesignScene extends Phaser.Scene {
         this.gridGraphics.lineStyle(2, color, 0.8);
         this.gridGraphics.fillStyle(color, 0.3);
 
-        let offsetX = 0;
-        let offsetY = 0;
-        if (name === 'Window' || name === 'Mirror') {
-            offsetX = -1;
-            offsetY = 0;
-        }
-        if (name === 'Table' || name === 'Bed'){
-            offsetX = -1;
-            offsetY = -1;
+        // Adjust visualization for Table and Closet as requested
+        let visualX = gridX;
+        let visualY = gridY;
+        let visualW = sizeW;
+        let visualH = sizeH;
+
+        if (name === 'Table' || name === 'Table2' || name === 'Closet') {
+            visualX = gridX;
+            visualY = gridY;
+        } else if (name === 'Flower2') {
+            visualX = gridX + 1;
+            visualY = gridY + 1;
+        } else if (name === 'Window' || name === 'Mirror' || name === 'Mirror2') {
+            visualX = gridX - 1;
+            visualY = gridY - 1;
         }
 
-        const p1 = this.isoToScreen(gridX + offsetX, gridY + offsetY, wallSide);
-        const p2 = this.isoToScreen(gridX + sizeW + offsetX, gridY + offsetY, wallSide);
-        const p3 = this.isoToScreen(gridX + sizeW + offsetX, gridY + sizeH + offsetY, wallSide);
-        const p4 = this.isoToScreen(gridX + offsetX, gridY + sizeH + offsetY, wallSide);
+        const p1 = this.isoToScreen(visualX, visualY, wallSide);
+        const p2 = this.isoToScreen(visualX + visualW, visualY, wallSide);
+        const p3 = this.isoToScreen(visualX + visualW, visualY + visualH, wallSide);
+        const p4 = this.isoToScreen(visualX, visualY + visualH, wallSide);
 
         this.gridGraphics.beginPath();
         this.gridGraphics.moveTo(p1.x, p1.y);
@@ -1592,6 +1616,20 @@ class DesignScene extends Phaser.Scene {
         allItems.forEach(type => {
             const isWallItem = (type === 'Window' || type === 'Mirror' || type === 'Mirror2' || type === 'Clock2' || type === 'Shell2');
             
+            if (type === 'Flower2') {
+                // Flower2 is always a floor item
+                const btn = document.createElement('button');
+                btn.className = 'btn';
+                btn.innerText = `+ ${type}`;
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.addFurniture(type);
+                };
+                invLeft.appendChild(btn);
+                return;
+            }
+            
             const btn = document.createElement('button');
             btn.className = 'btn';
             btn.innerText = `+ ${type}`;
@@ -1613,7 +1651,23 @@ class DesignScene extends Phaser.Scene {
         const isWallItem = (name === 'Window' || name === 'Mirror' || name === 'Mirror2' || name === 'Clock2' || name === 'Shell2');
         const size = ITEM_SIZES[name] || { w: 2, h: 2 };
         const screenPos = this.isoToScreen(gridX, gridY, wallSide);
-        const container = this.add.container(screenPos.x, screenPos.y);
+        // Special case for floor items with size > 1: center them on their grid footprint
+        let containerX = screenPos.x;
+        let containerY = screenPos.y;
+        if (!isWallItem && (size.w > 1 || size.h > 1)) {
+            let shiftX = size.w / 2;
+            let shiftY = size.h / 2;
+            // For Table and Closet, user wants them shifted "by 1" (closer to walls/corners)
+            if (name === 'Table' || name === 'Table2' || name === 'Closet') {
+                shiftX = 0.5; 
+                shiftY = 0.5; 
+            }
+            const centerPos = this.isoToScreen(gridX + shiftX, gridY + shiftY, wallSide);
+            containerX = centerPos.x;
+            containerY = centerPos.y; // Removed vertical shift (was -10)
+        }
+        
+        const container = this.add.container(containerX, containerY);
         container.gridX = gridX;
         container.gridY = gridY;
         container.gridW = size.w;
@@ -1714,28 +1768,6 @@ class DesignScene extends Phaser.Scene {
         // Arrows for floor items
         const isNoRotateItem = (name === 'Lamp' || name === 'Plant' || name === 'Flower2');
         if (!isWallItem && !isNoRotateItem) {
-            const updateArrowsPosition = () => {
-                const pCenter = this.isoToScreen(container.gridX + container.gridW / 2, container.gridY + container.gridH / 2, container.wallSide);
-                const pBase = this.isoToScreen(container.gridX, container.gridY, container.wallSide);
-                
-                // Relative position within container
-                // container.x, container.y is isoToScreen(gridX, gridY)
-                // We want to be at center of the grid object, but vertically at the "base" level
-                // Actually the indicator is drawn around the object.
-                // Let's put them at the bottom corner or similar.
-                // The user said "на уровне индикатора места".
-                
-                // Let's use the offset from container origin (gridX, gridY)
-                const centerPos = this.isoToScreen(container.gridX + container.gridW / 2, container.gridY + container.gridH / 2, container.wallSide);
-                const originPos = this.isoToScreen(container.gridX, container.gridY, container.wallSide);
-                
-                const relX = centerPos.x - originPos.x;
-                const relY = centerPos.y - originPos.y;
-                
-                arrowR.setPosition(relX + 40, relY);
-                arrowL.setPosition(relX - 40, relY);
-            };
-
             const arrowR = this.add.image(0, 0, 'arrow_right').setScale(0.12).setInteractive({ useHandCursor: true }).setTint(0xf18c8e);
             const arrowL = this.add.image(0, 0, 'arrow_left').setScale(0.12).setInteractive({ useHandCursor: true }).setTint(0xf18c8e);
             
@@ -1746,6 +1778,12 @@ class DesignScene extends Phaser.Scene {
             });
             
             container.add([arrowR, arrowL]);
+
+            const updateArrowsPosition = () => {
+                arrowR.setPosition(40, 0);
+                arrowL.setPosition(-40, 0);
+            };
+            
             updateArrowsPosition();
             
             const updateArrows = () => {
@@ -1818,7 +1856,7 @@ class DesignScene extends Phaser.Scene {
 
         container.on('drag', (pointer, dragX, dragY) => {
             const iso = this.screenToIso(dragX, dragY, container.isWallItem);
-            const isValid = this.isSpaceFree(iso.gridX, iso.gridY, container.gridW, container.gridH, container, iso.wallSide);
+            const isValid = this.isSpaceFree(iso.gridX, iso.gridY, container.gridW, container.gridH, container, iso.wallSide, container.name);
             
             // Save "target" state for use in dragend
             container.targetGridX = iso.gridX;
@@ -1837,8 +1875,21 @@ class DesignScene extends Phaser.Scene {
             // Sprite moves to cell only if it's free.
             if (isValid) {
                 const snappedPos = this.isoToScreen(iso.gridX, iso.gridY, iso.wallSide);
-                container.x = snappedPos.x;
-                container.y = snappedPos.y;
+                let finalX = snappedPos.x;
+                let finalY = snappedPos.y;
+                if (!container.isWallItem && (container.gridW > 1 || container.gridH > 1)) {
+                    let shiftX = container.gridW / 2;
+                    let shiftY = container.gridH / 2;
+                    if (container.name === 'Table' || container.name === 'Table2' || container.name === 'Closet') {
+                        shiftX = 0.5;
+                        shiftY = 0.5;
+                    }
+                    const centerPos = this.isoToScreen(iso.gridX + shiftX, iso.gridY + shiftY, iso.wallSide);
+                    finalX = centerPos.x;
+                    finalY = centerPos.y; // Removed vertical shift (was -10)
+                }
+                container.x = finalX;
+                container.y = finalY;
                 // Update arrows position during drag if they exist
                 if (container.updateArrowsPosition) {
                     // Update internal coordinates so updateArrowsPosition uses new ones
@@ -1885,8 +1936,21 @@ class DesignScene extends Phaser.Scene {
             
             // Final snapping
             const finalPos = this.isoToScreen(container.gridX, container.gridY, container.wallSide);
-            container.x = finalPos.x;
-            container.y = finalPos.y;
+            let finalX = finalPos.x;
+            let finalY = finalPos.y;
+            if (!container.isWallItem && (container.gridW > 1 || container.gridH > 1)) {
+                let shiftX = container.gridW / 2;
+                let shiftY = container.gridH / 2;
+                if (container.name === 'Table' || container.name === 'Table2' || container.name === 'Closet') {
+                    shiftX = 0.5;
+                    shiftY = 0.5;
+                }
+                const centerPos = this.isoToScreen(container.gridX + shiftX, container.gridY + shiftY, container.wallSide);
+                finalX = centerPos.x;
+                finalY = centerPos.y; // Removed vertical shift (was -10)
+            }
+            container.x = finalX;
+            container.y = finalY;
             
             if (container.isWallItem) {
                 container.setDepth(container.wallSide === 'left' ? 6 : 7);
