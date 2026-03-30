@@ -9,6 +9,8 @@ let maxSeenReputation = 1.0; // The highest reputation for which rooms have been
 // Rooms unlock based on reputation level: Level 2 -> Room 2, Level 3 -> Room 3, etc.
 const ROOM_UNLOCKS = [1, 2, 3, 4, 5, 6, 7, 8]; 
 const ROOM_NAMES = ['Cozy Studio', 'Modern Apartment', 'Sunlit Loft', 'Garden Suite', 'Minimal Hideaway', 'Creative Space', 'Artist Studio', 'VIP Penthouse'];
+let isCharacterAtCounter = false; // Persistent state for character position
+let isEconomyAnimationPlayed = false; // Persistent state for reward animation
 
 function updateCurrencyUI(showReputation = true) {
     const display = document.getElementById('currency-display');
@@ -446,7 +448,7 @@ class BriefingScene extends Phaser.Scene {
     }
 
     init(data) {
-        this.result = data.result || null; // 'success', 'failure' or null
+        this.result = (data && data.result) ? data.result : null; // 'success', 'failure' or null
     }
 
     preload() {
@@ -514,7 +516,12 @@ class BriefingScene extends Phaser.Scene {
         // Character (Resident)
         const commission = getCurrentCommission();
         const targetX = counter.x; // Align with the counter's center
-        const startX = this.result ? targetX : -100; // If there is a result, standing by the counter
+        
+        // КРИТИЧЕСКИ ВАЖНО: Если мы возвращаемся из магазина или показываем результат, 
+        // персонаж должен БЫТЬ у кассы (startX = targetX) и анимация НЕ должна проигрываться.
+        const shouldStayAtCounter = this.result || isCharacterAtCounter;
+        const startX = shouldStayAtCounter ? targetX : -100;
+        
         const characterContainer = this.add.container(startX, 320);
         
         // Using resident-specific sprite
@@ -833,24 +840,41 @@ class BriefingScene extends Phaser.Scene {
             fontWeight: 'bold' 
         }).setOrigin(1, 0);
 
-        if (!this.result) {
-            // Animation: Character walking in (New Commission)
+        if (shouldStayAtCounter) {
+            // Сразу показываем результат или возвращаемся из магазина
+            this.bubbleGroup.setVisible(true);
+            
+            // ПРИНУДИТЕЛЬНО останавливаем любые движения и ставим в цель
+            this.tweens.killTweensOf(characterContainer);
+            characterContainer.x = targetX;
+
+            if (this.result) {
+                if (!isEconomyAnimationPlayed) {
+                    this.handleEconomyAnimation(this.result, characterContainer);
+                }
+                isCharacterAtCounter = false; // Сбрасываем для следующего клиента ПОСЛЕ завершения уровня
+            } else {
+                // Мы просто вернулись из магазина, персонаж уже стоит и ждет
+                isCharacterAtCounter = true; 
+            }
+        } else {
+            // Анимация: Персонаж заходит в офис (Новый заказ)
+            isCharacterAtCounter = true; // Устанавливаем сразу, чтобы при переходе в магазин он "зафиксировался"
             this.tweens.add({
                 targets: characterContainer,
                 x: targetX, 
                 duration: 2000,
                 ease: 'Power2',
-                onComplete: () => this.bubbleGroup.setVisible(true)
+                onComplete: () => {
+                    this.bubbleGroup.setVisible(true);
+                }
             });
-        } else {
-            // Сразу показываем результат (Return from Design)
-            this.bubbleGroup.setVisible(true);
-            this.handleEconomyAnimation(this.result, characterContainer);
         }
 
         btnContainer.on('pointerdown', () => {
             if (this.result) {
                 currentLevel++; // Move to next level only when clicking NEXT
+                isEconomyAnimationPlayed = false; // Reset for next customer
                 this.scene.start('RoomSelectScene');
             } else {
                 this.scene.start('DesignScene');
@@ -969,6 +993,7 @@ class BriefingScene extends Phaser.Scene {
 
             continueBtnContainer.on('pointerdown', () => {
                 currentLevel++; // Move to next level here
+                isEconomyAnimationPlayed = false; // Reset for next customer
                 this.scene.start('RoomSelectScene');
             });
         });
@@ -976,6 +1001,7 @@ class BriefingScene extends Phaser.Scene {
 
     handleEconomyAnimation(result, character) {
         if (!result) return;
+        isEconomyAnimationPlayed = true; 
         
         const score = result.score;
         const reward = result.reward || 0;
@@ -1888,6 +1914,10 @@ class DesignScene extends Phaser.Scene {
     removeObject(container) {
         // Clear place in matrix before deletion
         updateOccupancy(container, true);
+
+        // Clear grid and indicator (fix: avoid grid staying visible after deletion)
+        if (this.gridGraphics) this.gridGraphics.clear();
+        if (this.staticGridGraphics) this.staticGridGraphics.clear();
 
         const index = furnitureItems.indexOf(container);
         if (index > -1) {
