@@ -291,6 +291,7 @@ class RoomSelectScene extends Phaser.Scene {
                 btn.on('pointerout', () => btn.setStyle({ backgroundColor: '#f18c8e' }));
                 btn.on('pointerdown', () => {
                     selectedRoom = i;
+                    currentLevel++; // Move to next level when picking a new room
                     this.scene.start('BriefingScene', { result: null });
                 });
             } else {
@@ -302,20 +303,31 @@ class RoomSelectScene extends Phaser.Scene {
             }
         });
 
-        const backBtn = this.add.text(400, 470, 'BACK', {
-            fontSize: '18px',
+        // Back Button
+        const backBtn = this.add.container(70, 40);
+        const backBtnBg = this.add.graphics();
+        backBtnBg.fillStyle(0x8fb9a8, 1);
+        backBtnBg.fillRoundedRect(-55, -20, 110, 40, 10);
+        backBtnBg.lineStyle(2, 0xffffff, 1);
+        backBtnBg.strokeRoundedRect(-55, -20, 110, 40, 10);
+
+        const backBtnText = this.add.text(0, 0, 'BACK', { 
+            color: '#fff', 
+            fontSize: '18px', 
             fontFamily: 'Arial Black',
-            color: '#ffffff',
-            backgroundColor: '#8fb9a8',
-            padding: { x: 20, y: 10 }
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+            fontWeight: 'bold' 
+        }).setOrigin(0.5);
+
+        backBtn.add([backBtnBg, backBtnText]);
+        backBtn.setInteractive(new Phaser.Geom.Rectangle(-55, -20, 110, 40), Phaser.Geom.Rectangle.Contains);
+        backBtn.useHandCursor = true;
+
+        backBtn.on('pointerdown', () => {
+            this.scene.start('BriefingScene'); 
+        });
         
         backBtn.on('pointerover', () => backBtn.setScale(1.05));
         backBtn.on('pointerout', () => backBtn.setScale(1.0));
-        backBtn.on('pointerdown', () => {
-            // Returning to agency, keep selectedRoom or result state if any
-            this.scene.start('BriefingScene'); 
-        });
     }
 }
 
