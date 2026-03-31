@@ -101,9 +101,9 @@ const COMMISSIONS = [
     {
         residentName: "Aleksey",
         residentType: "bear",
-        brief: "I want a workspace! Put in a table and a chair. And take away that plant, I have an allergy to it.",
+        brief: "I want a workspace! Put in a table and a chair. And take away that plant, I have an allergy to it. Also, that bed is too old!",
         requiredAdd: ["Table", "Chair"],
-        requiredRemove: ["Plant"],
+        requiredRemove: ["Plant", "Bed"],
         requiredVibe: "office",
         reward: 100
     },
@@ -1240,26 +1240,32 @@ class DesignScene extends Phaser.Scene {
         this.cameras.main.centerOn(400, 250);
 
 
-        // Initial placement of items (Floor item chair, Wall items window and mirror)
-        const chairSize = ITEM_SIZES['Chair'] || { w: 1, h: 1 };
-        const chairX = 8;
-        const chairY = 0;
-        if (this.isSpaceFree(chairX, chairY, chairSize.w, chairSize.h)) {
-            this.addFurnitureObject(chairX, chairY, 'Chair', 0x8b7355);
+        // Initial placement of items (Required to remove items)
+        const commission = getCurrentCommission();
+        if (commission.requiredRemove && Array.isArray(commission.requiredRemove)) {
+            commission.requiredRemove.forEach(itemName => {
+                const isWallItem = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shell2';
+                const size = ITEM_SIZES[itemName] || { w: 1, h: 2 };
+                
+                const freeSpace = isWallItem ? this.findRandomFreeWallSpace(size.w, size.h) : this.findRandomFreeSpace(size.w, size.h);
+                if (freeSpace) {
+                    this.addFurnitureObject(freeSpace.gridX, freeSpace.gridY, itemName, 0xffffff, freeSpace.wallSide || null);
+                }
+            });
         }
 
-        const windowSize = ITEM_SIZES['Window'] || { w: 2, h: 2 };
-        const windowX = 4;
-        const windowY = 4;
-        if (this.isSpaceFree(windowX, windowY, windowSize.w, windowSize.h, null, 'left')) {
-            this.addFurnitureObject(windowX, windowY, 'Window', 0xadd8e6, 'left');
-        }
-
-        const mirrorSize = ITEM_SIZES['Mirror'] || { w: 1, h: 2 };
-        const mirrorX = 4;
-        const mirrorY = 4;
-        if (this.isSpaceFree(mirrorX, mirrorY, mirrorSize.w, mirrorSize.h, null, 'right')) {
-            this.addFurnitureObject(mirrorX, mirrorY, 'Mirror', 0xe0e0e0, 'right');
+        // Add some random items to make the room look lived-in
+        const randomItemsCount = Phaser.Math.Between(2, 5);
+        const allItemNames = Object.keys(ITEM_SIZES);
+        for (let i = 0; i < randomItemsCount; i++) {
+            const itemName = Phaser.Utils.Array.GetRandom(allItemNames);
+            const isWallItem = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shell2';
+            const size = ITEM_SIZES[itemName] || { w: 1, h: 2 };
+            
+            const freeSpace = isWallItem ? this.findRandomFreeWallSpace(size.w, size.h) : this.findRandomFreeSpace(size.w, size.h);
+            if (freeSpace) {
+                this.addFurnitureObject(freeSpace.gridX, freeSpace.gridY, itemName, 0xffffff, freeSpace.wallSide || null);
+            }
         }
 
         // New Phaser "Done!" button (matches SHOP button style)
@@ -1542,6 +1548,37 @@ class DesignScene extends Phaser.Scene {
             }
         }
         return true;
+    }
+
+    findRandomFreeWallSpace(sizeW, sizeH) {
+        const spaces = [];
+        // Try left wall then right wall
+        for (let side of ['left', 'right']) {
+            const surface = SURFACES[side];
+            for (let y = 0; y <= surface.rows - sizeH; y++) {
+                for (let x = 0; x <= surface.cols - sizeW; x++) {
+                    if (this.isSpaceFree(x, y, sizeW, sizeH, null, side)) {
+                        spaces.push({ gridX: x, gridY: y, wallSide: side });
+                    }
+                }
+            }
+        }
+        if (spaces.length === 0) return null;
+        return Phaser.Utils.Array.GetRandom(spaces);
+    }
+
+    findRandomFreeSpace(sizeW, sizeH) {
+        const spaces = [];
+        const surface = SURFACES.floor;
+        for (let y = 0; y <= surface.rows - sizeH; y++) {
+            for (let x = 0; x <= surface.cols - sizeW; x++) {
+                if (this.isSpaceFree(x, y, sizeW, sizeH)) {
+                    spaces.push({ gridX: x, gridY: y });
+                }
+            }
+        }
+        if (spaces.length === 0) return null;
+        return Phaser.Utils.Array.GetRandom(spaces);
     }
 
     findFreeWallSpace(sizeW, sizeH) {
