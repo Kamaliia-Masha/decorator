@@ -565,9 +565,9 @@ class BriefingScene extends Phaser.Scene {
         const residentTexture = commission.residentType || 'rabbit';
         const resident = this.add.image(0, 40, residentTexture); 
         
-        // Scale adjustment: dog and fox are too big, others are fine at 0.6
-        if (residentTexture === 'dog' || residentTexture === 'fox') {
-            resident.setScale(0.35);
+        // Scale adjustment: dog, pig, fox need to be smaller (0.3 instead of 0.4)
+        if (residentTexture === 'dog' || residentTexture === 'pig' || residentTexture === 'fox') {
+            resident.setScale(0.3);
         } else {
             resident.setScale(0.6);
         }
