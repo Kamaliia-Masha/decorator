@@ -214,14 +214,14 @@ function getCurrentCommission() {
 
 // Shop data
 const SHOP_ITEMS = [
-    { name: 'Table2', price: 30, type: 'floor', texture: 'table2', displayName: 'Table 2' },
-    { name: 'Chair2', price: 30, type: 'floor', texture: 'chair2', displayName: 'Chair 2' },
-    { name: 'Flower2', price: 30, type: 'floor', texture: 'flower2', displayName: 'Flower 2' },
-    { name: 'Puffic2', price: 30, type: 'floor', texture: 'puffic2', displayName: 'Puff 2' },
-    { name: 'Stairs2', price: 30, type: 'floor', texture: 'stairs2', displayName: 'Stairs 2' },
-    { name: 'Mirror2', price: 20, type: 'wall', texture: 'mirror2', displayName: 'Mirror 2' },
-    { name: 'Clock2', price: 20, type: 'wall', texture: 'clock2', displayName: 'Clock 2' },
-    { name: 'Shell2', price: 20, type: 'wall', texture: 'shell2', displayName: 'Shelf 2' }
+    { name: 'Table2', price: 30, category: 'furniture', texture: 'table2', displayName: 'Table 2' },
+    { name: 'Chair2', price: 30, category: 'furniture', texture: 'chair2', displayName: 'Chair 2' },
+    { name: 'Flower2', price: 30, category: 'decor', texture: 'flower2', displayName: 'Flower 2' },
+    { name: 'Puffic2', price: 30, category: 'furniture', texture: 'puffic2', displayName: 'Puff 2' },
+    { name: 'Stairs2', price: 30, category: 'furniture', texture: 'stairs2', displayName: 'Stairs 2' },
+    { name: 'Mirror2', price: 20, category: 'walls', texture: 'mirror2', displayName: 'Mirror 2' },
+    { name: 'Clock2', price: 20, category: 'decor', texture: 'clock2', displayName: 'Clock 2' },
+    { name: 'Shell2', price: 20, category: 'walls', texture: 'shell2', displayName: 'Shelf 2' }
 ];
 
 // --- Scene: Room Selection ---
@@ -345,6 +345,8 @@ class RoomSelectScene extends Phaser.Scene {
 class ShopScene extends Phaser.Scene {
     constructor() {
         super('ShopScene');
+        this.currentCategory = 'all';
+        this.itemGroup = null;
     }
 
     create() {
@@ -356,24 +358,65 @@ class ShopScene extends Phaser.Scene {
         // Header panel
         const headerPanel = this.add.graphics();
         headerPanel.fillStyle(0xf18c8e, 1);
-        headerPanel.fillRoundedRect(250, 20, 300, 60, 20);
+        headerPanel.fillRoundedRect(250, 10, 300, 50, 15);
         headerPanel.lineStyle(4, 0xffffff, 1);
-        headerPanel.strokeRoundedRect(250, 20, 300, 60, 20);
+        headerPanel.strokeRoundedRect(250, 10, 300, 50, 15);
 
-        this.add.text(400, 50, 'AGENCY SHOP', { 
+        this.add.text(400, 35, 'AGENCY SHOP', { 
             color: '#ffffff', 
-            fontSize: '28px', 
+            fontSize: '24px', 
             fontWeight: 'bold',
             fontFamily: 'Arial Black'
         }).setOrigin(0.5);
 
+        // Categories
+        const categories = ['all', 'furniture', 'walls', 'decor'];
+        const categoryY = 90;
+        const catSpacing = 120;
+        const startCatX = 400 - ((categories.length - 1) * catSpacing) / 2;
+
+        categories.forEach((cat, i) => {
+            const x = startCatX + i * catSpacing;
+            const catBtn = this.add.container(x, categoryY);
+            
+            const btnBg = this.add.graphics();
+            const isActive = this.currentCategory === cat;
+            btnBg.fillStyle(isActive ? 0x8fb9a8 : 0xffffff, 1);
+            btnBg.fillRoundedRect(-50, -15, 100, 30, 10);
+            btnBg.lineStyle(2, 0x8fb9a8, 1);
+            btnBg.strokeRoundedRect(-50, -15, 100, 30, 10);
+            
+            const btnText = this.add.text(0, 0, cat.toUpperCase(), {
+                color: isActive ? '#fff' : '#8fb9a8',
+                fontSize: '14px',
+                fontWeight: 'bold'
+            }).setOrigin(0.5);
+            
+            catBtn.add([btnBg, btnText]);
+            catBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -15, 100, 30), Phaser.Geom.Rectangle.Contains);
+            catBtn.useHandCursor = true;
+            
+            catBtn.on('pointerdown', () => {
+                this.currentCategory = cat;
+                this.scene.restart();
+            });
+            
+            catBtn.on('pointerover', () => catBtn.setScale(1.05));
+            catBtn.on('pointerout', () => catBtn.setScale(1.0));
+        });
+
         // Product list
+        if (this.itemGroup) this.itemGroup.destroy();
+        this.itemGroup = this.add.group();
+
+        const filteredItems = SHOP_ITEMS.filter(item => this.currentCategory === 'all' || item.category === this.currentCategory);
+
         const startX = 100;
-        const startY = 150;
+        const startY = 170;
         const spacingX = 150;
         const spacingY = 160;
 
-        SHOP_ITEMS.forEach((item, index) => {
+        filteredItems.forEach((item, index) => {
             const row = Math.floor(index / 5);
             const col = index % 5;
             const x = startX + col * spacingX;
@@ -387,17 +430,20 @@ class ShopScene extends Phaser.Scene {
             cardBg.fillRoundedRect(x - 65, y - 50, 130, 140, 12);
             cardBg.lineStyle(2, 0xe6d5c3, 1);
             cardBg.strokeRoundedRect(x - 65, y - 50, 130, 140, 12);
+            this.itemGroup.add(cardBg);
 
             // Item image
             const img = this.add.image(x, y, item.texture);
             const scale = 70 / Math.max(img.width, img.height);
             img.setScale(scale);
+            this.itemGroup.add(img);
 
-            this.add.text(x, y + 45, item.displayName, { 
+            const nameText = this.add.text(x, y + 45, item.displayName, { 
                 color: '#5f4b32', 
                 fontSize: '14px', 
                 fontWeight: 'bold' 
             }).setOrigin(0.5);
+            this.itemGroup.add(nameText);
             
             const priceText = isPurchased ? 'BOUGHT' : `${item.price}`;
             const btnColor = isPurchased ? 0xcccccc : 0x8fb9a8;
@@ -450,6 +496,7 @@ class ShopScene extends Phaser.Scene {
             } else {
                 buyBtn.add([buyBtnBg, buyBtnText]);
             }
+            this.itemGroup.add(buyBtn);
         });
 
         const backBtn = this.add.container(400, 460);
