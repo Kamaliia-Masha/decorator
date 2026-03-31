@@ -12,13 +12,23 @@ const ROOM_NAMES = ['Cozy Studio', 'Modern Apartment', 'Sunlit Loft', 'Garden Su
 let isCharacterAtCounter = false; // Persistent state for character position
 let isEconomyAnimationPlayed = false; // Persistent state for reward animation
 
-function updateCurrencyUI(showReputation = true) {
+function updateCurrencyUI(showReputation = true, isDesignMode = false) {
     const display = document.getElementById('currency-display');
     const reputationText = document.getElementById('reputation-text');
     const coinsText = document.getElementById('coins-text');
     
     if (display) {
         display.style.display = 'block';
+        if (isDesignMode) {
+            display.style.top = 'auto';
+            display.style.right = '20px';
+            display.style.bottom = '10px';
+        } else {
+            display.style.top = '10px';
+            display.style.right = '20px';
+            display.style.bottom = 'auto';
+        }
+        
         if (reputationText) {
             reputationText.innerText = `Reputation: ${reputation.toFixed(1)}`;
             reputationText.style.display = showReputation ? 'inline' : 'none';
@@ -555,8 +565,8 @@ class BriefingScene extends Phaser.Scene {
         const residentTexture = commission.residentType || 'rabbit';
         const resident = this.add.image(0, 40, residentTexture); 
         
-        // Scale adjustment: dog is too big, others are fine at 0.6
-        if (residentTexture === 'dog') {
+        // Scale adjustment: dog and fox are too big, others are fine at 0.6
+        if (residentTexture === 'dog' || residentTexture === 'fox') {
             resident.setScale(0.35);
         } else {
             resident.setScale(0.6);
@@ -1158,7 +1168,7 @@ class DesignScene extends Phaser.Scene {
         
         if (document.getElementById('ui-panel')) {
             document.getElementById('ui-panel').style.display = 'block';
-            updateCurrencyUI(false);
+            updateCurrencyUI(false, true);
             
             // Update brief
             const commission = getCurrentCommission();
