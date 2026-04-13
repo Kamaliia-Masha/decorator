@@ -18,16 +18,14 @@ function updateCurrencyUI(showReputation = true, isDesignMode = false) {
     const coinsText = document.getElementById('coins-text');
     
     if (display) {
-        display.style.display = 'block';
         if (isDesignMode) {
-            display.style.top = 'auto';
-            display.style.right = '20px';
-            display.style.bottom = '10px';
-        } else {
-            display.style.top = '10px';
-            display.style.right = '20px';
-            display.style.bottom = 'auto';
+            display.style.display = 'none';
+            return;
         }
+        display.style.display = 'block';
+        display.style.top = '10px';
+        display.style.right = '20px';
+        display.style.bottom = 'auto';
         
         if (reputationText) {
             reputationText.innerText = `Reputation: ${reputation.toFixed(1)}`;
@@ -76,7 +74,7 @@ const ITEM_VIBES = {
     'Stairs2': ['vintage', 'fancy'],
     'Mirror2': ['fancy', 'modern'],
     'Clock2': ['vintage', 'fancy'],
-    'Shell2': ['storage', 'fancy', 'modern']
+    'Shelf2': ['storage', 'fancy', 'modern']
 };
 
 const COMMISSIONS = [
@@ -221,7 +219,7 @@ const SHOP_ITEMS = [
     { name: 'Stairs2', price: 30, category: 'furniture', texture: 'stairs2', displayName: 'Stairs 2' },
     { name: 'Mirror2', price: 20, category: 'walls', texture: 'mirror2', displayName: 'Mirror 2' },
     { name: 'Clock2', price: 20, category: 'decor', texture: 'clock2', displayName: 'Clock 2' },
-    { name: 'Shell2', price: 20, category: 'walls', texture: 'shell2', displayName: 'Shelf 2' }
+    { name: 'Shelf2', price: 20, category: 'walls', texture: 'shelf2', displayName: 'Shelf 2' }
 ];
 
 // --- Scene: Room Selection ---
@@ -556,7 +554,7 @@ class BriefingScene extends Phaser.Scene {
         this.load.image('stairs2', 'assets/floor_items/right_view/stairs2.png?v=' + version);
         this.load.image('mirror2', 'assets/wall_items/right_view/mirror.png?v=' + version); 
         this.load.image('clock2', 'assets/wall_items/right_view/clock2.png?v=' + version);
-        this.load.image('shell2', 'assets/wall_items/right_view/shelf2.png?v=' + version);
+        this.load.image('shelf2', 'assets/wall_items/right_view/shelf2.png?v=' + version);
     }
 
     create() {
@@ -1039,7 +1037,6 @@ const ITEM_SIZES = {
     'Plant': { w: 1, h: 1 },
     'Lamp': { w: 1, h: 1 },
     'Chair': { w: 1, h: 1 },
-    'Old Chair': { w: 1, h: 1 },
     'Table': { w: 2, h: 2 },
     'Bed': { w: 2, h: 2 },
     'Closet': { w: 2, h: 2 },
@@ -1051,8 +1048,29 @@ const ITEM_SIZES = {
     'Puffic2': { w: 1, h: 1 },
     'Stairs2': { w: 1, h: 1 },
     'Mirror2': { w: 1, h: 4 },
-    'Clock2': { w: 1, h: 1 },
-    'Shell2': { w: 2, h: 1 }
+    'Clock2': { w: 2, h: 2 },
+    'Shelf2': { w: 2, h: 1 }
+};
+
+// Maximum visual dimension (pixels) per item.
+// 1 floor cell ≈ 59px screen diagonal; 1 wall cell ≈ 30px.
+// 1×1 floor items are visually smaller than 2×2 items.
+// Wall items are not listed here — they use getWallMaxDim() (footprint-based).
+// Exception: Clock2 is now 2×2 wall cells, getWallMaxDim gives ~59px which is fine.
+const ITEM_MAX_DIM = {
+    // --- 1×1 floor items (smaller than 2×2) ---
+    'Chair':   135,   // dining chair
+    'Chair2':  135,   // office chair
+    'Lamp':    145,   // tall floor lamp
+    'Plant':   125,   // medium potted plant
+    'Flower2':  55,   // small flower / vase
+    'Puffic2':  95,   // low ottoman
+    'Stairs2': 110,   // decorative stairs
+    // --- 2×2 floor items (clearly larger) ---
+    'Table':   150,   // dining table
+    'Table2':  148,   // side / coffee table
+    'Bed':     150,   // bed
+    'Closet':  150,   // wardrobe — 2×2 indicator ≈ 117px, 150px has minor acceptable overflow
 };
 
 const DISPLAY_WIDTH = 800;
@@ -1184,7 +1202,7 @@ class DesignScene extends Phaser.Scene {
             { id: 'mirror', file: 'mirror' },
             { id: 'mirror2', file: 'mirror' }, // Mirror2 uses mirror.png in right_view/left_view
             { id: 'clock2', file: 'clock2' },
-            { id: 'shell2', file: 'shelf2' } // Shell2 uses shelf2.png
+            { id: 'shelf2', file: 'shelf2' }
         ];
         wallItems.forEach(item => {
             this.load.image(`${item.id}_right`, `assets/wall_items/right_view/${item.file}.png?v=${version}`);
@@ -1244,9 +1262,9 @@ class DesignScene extends Phaser.Scene {
         const commission = getCurrentCommission();
         if (commission.requiredRemove && Array.isArray(commission.requiredRemove)) {
             commission.requiredRemove.forEach(itemName => {
-                const isWallItem = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shell2';
+                const isWallItem = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shelf2';
                 const size = ITEM_SIZES[itemName] || { w: 1, h: 2 };
-                
+        
                 const freeSpace = isWallItem ? this.findRandomFreeWallSpace(size.w, size.h) : this.findRandomFreeSpace(size.w, size.h);
                 if (freeSpace) {
                     this.addFurnitureObject(freeSpace.gridX, freeSpace.gridY, itemName, 0xffffff, freeSpace.wallSide || null);
@@ -1259,7 +1277,7 @@ class DesignScene extends Phaser.Scene {
         const allItemNames = Object.keys(ITEM_SIZES);
         for (let i = 0; i < randomItemsCount; i++) {
             const itemName = Phaser.Utils.Array.GetRandom(allItemNames);
-            const isWallItem = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shell2';
+            const isWallItem = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shelf2';
             const size = ITEM_SIZES[itemName] || { w: 1, h: 2 };
             
             const freeSpace = isWallItem ? this.findRandomFreeWallSpace(size.w, size.h) : this.findRandomFreeSpace(size.w, size.h);
@@ -1334,9 +1352,9 @@ class DesignScene extends Phaser.Scene {
             if (type === 'Puffic2') color = 0x9370db;
             if (type === 'Stairs2') color = 0x8b4513;
             if (type === 'Clock2') color = 0xffd700;
-            if (type === 'Shell2') color = 0xffa500;
+            if (type === 'Shelf2') color = 0xffa500;
             
-            const isWallItem = (type === 'Window' || type === 'Mirror' || type === 'Mirror2' || type === 'Clock2' || type === 'Shell2');
+            const isWallItem = (type === 'Window' || type === 'Mirror' || type === 'Mirror2' || type === 'Clock2' || type === 'Shelf2');
             const size = ITEM_SIZES[type] || { w: 2, h: 2 };
             const pos = isWallItem ? this.findFreeWallSpace(size.w, size.h) : this.findFreeSpace(size.w, size.h);
             
@@ -1606,31 +1624,18 @@ class DesignScene extends Phaser.Scene {
 
     drawGridIndicator(gridX, gridY, sizeW, sizeH, isValid, wallSide, name = "") {
         this.gridGraphics.clear();
+
+        // Don't draw if out of bounds (e.g., wall item dragged to floor area)
+        if (gridX < 0 || gridY < 0) return;
+
         const color = isValid ? 0x00ff00 : 0xff0000;
         this.gridGraphics.lineStyle(2, color, 0.8);
         this.gridGraphics.fillStyle(color, 0.3);
 
-        // Adjust visualization for Table and Closet as requested
-        let visualX = gridX;
-        let visualY = gridY;
-        let visualW = sizeW;
-        let visualH = sizeH;
-
-        if (name === 'Table' || name === 'Table2' || name === 'Closet') {
-            visualX = gridX;
-            visualY = gridY;
-        } else if (name === 'Flower2') {
-            visualX = gridX + 1;
-            visualY = gridY + 1;
-        } else if (name === 'Window' || name === 'Mirror' || name === 'Mirror2') {
-            visualX = gridX - 1;
-            visualY = gridY - 1;
-        }
-
-        const p1 = this.isoToScreen(visualX, visualY, wallSide);
-        const p2 = this.isoToScreen(visualX + visualW, visualY, wallSide);
-        const p3 = this.isoToScreen(visualX + visualW, visualY + visualH, wallSide);
-        const p4 = this.isoToScreen(visualX, visualY + visualH, wallSide);
+        const p1 = this.isoToScreen(gridX, gridY, wallSide);
+        const p2 = this.isoToScreen(gridX + sizeW, gridY, wallSide);
+        const p3 = this.isoToScreen(gridX + sizeW, gridY + sizeH, wallSide);
+        const p4 = this.isoToScreen(gridX, gridY + sizeH, wallSide);
 
         this.gridGraphics.beginPath();
         this.gridGraphics.moveTo(p1.x, p1.y);
@@ -1656,7 +1661,7 @@ class DesignScene extends Phaser.Scene {
         invRight.innerHTML = '<strong>Walls</strong>';
 
         allItems.forEach(type => {
-            const isWallItem = (type === 'Window' || type === 'Mirror' || type === 'Mirror2' || type === 'Clock2' || type === 'Shell2');
+            const isWallItem = (type === 'Window' || type === 'Mirror' || type === 'Mirror2' || type === 'Clock2' || type === 'Shelf2');
             
             if (type === 'Flower2') {
                 // Flower2 is always a floor item
@@ -1690,23 +1695,33 @@ class DesignScene extends Phaser.Scene {
     }
 
     addFurnitureObject(gridX, gridY, name, color, wallSide = null) {
-        const isWallItem = (name === 'Window' || name === 'Mirror' || name === 'Mirror2' || name === 'Clock2' || name === 'Shell2');
+        const isWallItem = (name === 'Window' || name === 'Mirror' || name === 'Mirror2' || name === 'Clock2' || name === 'Shelf2');
         const size = ITEM_SIZES[name] || { w: 2, h: 2 };
         const screenPos = this.isoToScreen(gridX, gridY, wallSide);
-        // Special case for floor items with size > 1: center them on their grid footprint
+        // Center objects on their grid footprint
         let containerX = screenPos.x;
         let containerY = screenPos.y;
-        if (!isWallItem && (size.w > 1 || size.h > 1)) {
+        if (isWallItem) {
+            // Center wall items at the middle of their grid footprint
+            const centerPos = this.isoToScreen(gridX + size.w / 2, gridY + size.h / 2, wallSide);
+            containerX = centerPos.x;
+            containerY = centerPos.y;
+        } else if (size.w > 1 || size.h > 1) {
             let shiftX = size.w / 2;
             let shiftY = size.h / 2;
             // For Table and Closet, user wants them shifted "by 1" (closer to walls/corners)
             if (name === 'Table' || name === 'Table2' || name === 'Closet') {
-                shiftX = 0.5; 
-                shiftY = 0.5; 
+                shiftX = 0.5;
+                shiftY = 0.5;
             }
             const centerPos = this.isoToScreen(gridX + shiftX, gridY + shiftY, wallSide);
             containerX = centerPos.x;
-            containerY = centerPos.y; // Removed vertical shift (was -10)
+            containerY = centerPos.y;
+        } else if (name === 'Flower2') {
+            // Bottom-align: plant base sits at the front-bottom corner of the cell
+            const bottomPos = this.isoToScreen(gridX + 1, gridY + 1, wallSide);
+            containerX = bottomPos.x;
+            containerY = bottomPos.y;
         }
         
         const container = this.add.container(containerX, containerY);
@@ -1722,9 +1737,9 @@ class DesignScene extends Phaser.Scene {
         if (isWallItem) container.setDepth(container.wallSide === 'left' ? 6 : 7);
         
         const getTextureKey = (itemName, viewSide) => {
-            let baseKey = itemName.toLowerCase().replace(' ', '_');
+            let baseKey = itemName.toLowerCase().replace(/ /g, '_');
             // Mapping for specific names if needed
-            if (baseKey === 'shelf2') baseKey = 'shell2'; // consistent with ITEM_SIZES and other logic
+            if (baseKey === 'shelf2') baseKey = 'shelf2'; // already lowercase
             
             const key = `${baseKey}_${viewSide}`;
             if (this.textures.exists(key)) return key;
@@ -1736,20 +1751,33 @@ class DesignScene extends Phaser.Scene {
             return null;
         };
 
+        // Compute maxDim so the visual fits within the grid footprint on the wall
+        const getWallMaxDim = (side) => {
+            const s = SURFACES[side || 'left'];
+            const corners = [
+                s.localToScreen(0, 0),
+                s.localToScreen(size.w, 0),
+                s.localToScreen(size.w, size.h),
+                s.localToScreen(0, size.h)
+            ];
+            const xs = corners.map(c => c.x);
+            const ys = corners.map(c => c.y);
+            const bboxW = Math.max(...xs) - Math.min(...xs);
+            const bboxH = Math.max(...ys) - Math.min(...ys);
+            return Math.max(bboxW, bboxH);
+        };
+
+        const getMaxDim = (side) => {
+            if (ITEM_MAX_DIM[name] !== undefined) return ITEM_MAX_DIM[name];
+            // Fallback: wall items use footprint size, floor items use legacy default
+            return isWallItem ? getWallMaxDim(side || 'left') : 150;
+        };
+
         const updateVisualTexture = () => {
             const textureKey = getTextureKey(name, container.viewSide);
             if (textureKey && this.textures.exists(textureKey)) {
                 visual.setTexture(textureKey);
-                
-                let maxDim = 150; 
-                if (isWallItem) {
-                    maxDim = 120;
-                    if (name === 'Window' && container.viewSide === 'right') maxDim = 150; // Window on right wall was appearing smaller
-                    if (name.includes('Clock') || name.includes('Shell')) maxDim = 80;
-                }
-                if (name.includes('2') && !isWallItem) {
-                    maxDim = 130;
-                }
+                const maxDim = getMaxDim(container.wallSide);
                 if (visual.width > maxDim || visual.height > maxDim) {
                     const scale = maxDim / Math.max(visual.width, visual.height);
                     visual.setScale(scale);
@@ -1759,18 +1787,10 @@ class DesignScene extends Phaser.Scene {
 
         let initialTexture = getTextureKey(name, container.viewSide);
         let visual;
-        
+
         if (initialTexture && this.textures.exists(initialTexture)) {
             visual = this.add.image(0, 0, initialTexture);
-            let maxDim = 150; 
-            if (isWallItem) {
-                maxDim = 120;
-                if (name === 'Window' && container.viewSide === 'right') maxDim = 150; // Window on right wall was appearing smaller
-                if (name.includes('Clock') || name.includes('Shell')) maxDim = 80;
-            }
-            if (name.includes('2') && !isWallItem) {
-                maxDim = 130;
-            }
+            const maxDim = getMaxDim(wallSide);
             if (visual.width > maxDim || visual.height > maxDim) {
                 const scale = maxDim / Math.max(visual.width, visual.height);
                 visual.setScale(scale);
@@ -1789,7 +1809,7 @@ class DesignScene extends Phaser.Scene {
             if (name.includes("Window")) symbol = "🪟";
             if (name.includes("Mirror")) symbol = "🪞";
             if (name.includes("Clock")) symbol = "⏰";
-            if (name.includes("Shell")) symbol = "🐚";
+            if (name.includes("Shelf")) symbol = "🐚";
             if (name.includes("Flower")) symbol = "🌸";
             if (name.includes("Puffic")) symbol = "🛋️";
             if (name.includes("Stairs")) symbol = "🪜";
@@ -1804,8 +1824,18 @@ class DesignScene extends Phaser.Scene {
         }
         
         container.addAt(visual, 0);
-        visual.setOrigin(0.5, 0.5);
+        // Flower2: bottom-aligned so the plant base sits at the cell's front corner
+        visual.setOrigin(0.5, name === 'Flower2' ? 1 : 0.5);
         visual.y = 0;
+        // Pixel-perfect hit detection: transparent pixels are ignored, so clicking on the
+        // visible part of any item selects exactly that item even if images overlap.
+        // Falls back to rectangle hit area for placeholder shapes (no texture).
+        if (visual.type === 'Image') {
+            visual.setInteractive(this.input.makePixelPerfect(1));
+            this.input.setDraggable(visual);
+        } else {
+            visual.setInteractive({ draggable: true });
+        }
 
         // Arrows for floor items
         const isNoRotateItem = (name === 'Lamp' || name === 'Plant' || name === 'Flower2');
@@ -1864,13 +1894,13 @@ class DesignScene extends Phaser.Scene {
         }
 
         container.updateVisualTexture = updateVisualTexture;
-        container.setSize(visual.displayWidth, visual.displayHeight);
-        container.setInteractive({ draggable: true });
         container.name = name;
 
-        this.input.setDraggable(container);
-
-        container.on('dragstart', () => {
+        // dragX/dragY from Phaser when dragging a container-child are in local (container) space.
+        // Convert to world: worldX = container._initX + dragX  (container has no rotation/scale).
+        visual.on('dragstart', () => {
+            container._initX = container.x;
+            container._initY = container.y;
             container.setDepth(1000);
             container.tempWallSide = container.wallSide;
             this.gridGraphics.setVisible(true);
@@ -1881,45 +1911,41 @@ class DesignScene extends Phaser.Scene {
             } else {
                 this.drawFullGrid();
             }
-            // Save initial state for snap back on cancel
             container.originalGridX = container.gridX;
             container.originalGridY = container.gridY;
             container.originalWallSide = container.wallSide;
-            
-            // Clear old place in matrix before dragging
             updateOccupancy(container, true);
-
-            // Initialize current state as valid
             container.targetIsValid = true;
             container.targetGridX = container.gridX;
             container.targetGridY = container.gridY;
             container.targetWallSide = container.wallSide;
         });
 
-        container.on('drag', (pointer, dragX, dragY) => {
-            const iso = this.screenToIso(dragX, dragY, container.isWallItem);
+        visual.on('drag', (pointer, dragX, dragY) => {
+            // Convert local drag coords to world position
+            const worldX = container._initX + dragX;
+            const worldY = container._initY + dragY;
+            const iso = this.screenToIso(worldX, worldY, container.isWallItem);
             const isValid = this.isSpaceFree(iso.gridX, iso.gridY, container.gridW, container.gridH, container, iso.wallSide, container.name);
-            
-            // Save "target" state for use in dragend
+
             container.targetGridX = iso.gridX;
             container.targetGridY = iso.gridY;
             container.targetWallSide = iso.wallSide;
             container.targetIsValid = isValid;
 
-            // If wall changed, change texture
             if (container.isWallItem && iso.wallSide && iso.wallSide !== container.tempWallSide) {
                 container.tempWallSide = iso.wallSide;
-                container.viewSide = iso.wallSide; // update view side to match wall
+                container.viewSide = iso.wallSide;
                 container.updateVisualTexture();
             }
 
-            // Items are not allowed to overlap:
-            // Sprite moves to cell only if it's free.
             if (isValid) {
-                const snappedPos = this.isoToScreen(iso.gridX, iso.gridY, iso.wallSide);
-                let finalX = snappedPos.x;
-                let finalY = snappedPos.y;
-                if (!container.isWallItem && (container.gridW > 1 || container.gridH > 1)) {
+                let finalX, finalY;
+                if (container.isWallItem) {
+                    const centerPos = this.isoToScreen(iso.gridX + container.gridW / 2, iso.gridY + container.gridH / 2, iso.wallSide);
+                    finalX = centerPos.x;
+                    finalY = centerPos.y;
+                } else if (container.gridW > 1 || container.gridH > 1) {
                     let shiftX = container.gridW / 2;
                     let shiftY = container.gridH / 2;
                     if (container.name === 'Table' || container.name === 'Table2' || container.name === 'Closet') {
@@ -1928,30 +1954,36 @@ class DesignScene extends Phaser.Scene {
                     }
                     const centerPos = this.isoToScreen(iso.gridX + shiftX, iso.gridY + shiftY, iso.wallSide);
                     finalX = centerPos.x;
-                    finalY = centerPos.y; // Removed vertical shift (was -10)
+                    finalY = centerPos.y;
+                } else if (container.name === 'Flower2') {
+                    const snappedPos = this.isoToScreen(iso.gridX + 1, iso.gridY + 1, iso.wallSide);
+                    finalX = snappedPos.x;
+                    finalY = snappedPos.y;
+                } else {
+                    const snappedPos = this.isoToScreen(iso.gridX, iso.gridY, iso.wallSide);
+                    finalX = snappedPos.x;
+                    finalY = snappedPos.y;
                 }
                 container.x = finalX;
                 container.y = finalY;
-                // Update arrows position during drag if they exist
                 if (container.updateArrowsPosition) {
-                    // Update internal coordinates so updateArrowsPosition uses new ones
                     const oldGridX = container.gridX;
                     const oldGridY = container.gridY;
                     container.gridX = iso.gridX;
                     container.gridY = iso.gridY;
                     container.updateArrowsPosition();
-                    // Restore original for standard logic (which updates them in dragend)
                     container.gridX = oldGridX;
                     container.gridY = oldGridY;
                 }
+            } else {
+                container.x = worldX;
+                container.y = worldY;
             }
 
-            // Display indicator (always follows cursor and glows red if placement is invalid)
             this.drawGridIndicator(iso.gridX, iso.gridY, container.gridW, container.gridH, isValid, iso.wallSide, container.name);
         });
 
-        container.on('dragend', () => {
-            // If indicator was red on release, return item to original place
+        visual.on('dragend', () => {
             if (container.targetIsValid) {
                 container.gridX = container.targetGridX;
                 container.gridY = container.targetGridY;
@@ -1960,27 +1992,21 @@ class DesignScene extends Phaser.Scene {
                 container.gridX = container.originalGridX;
                 container.gridY = container.originalGridY;
                 container.wallSide = container.originalWallSide;
-                
-                // Visual texture update (if wall item)
                 if (container.isWallItem) {
                     container.viewSide = container.wallSide;
                     container.updateVisualTexture();
                 }
             }
-            
-            // Ensure arrows are correctly positioned at the final place
             if (container.updateArrowsPosition) {
                 container.updateArrowsPosition();
             }
-
-            // Update occupancy matrix in new (or old) place
             updateOccupancy(container);
-            
-            // Final snapping
-            const finalPos = this.isoToScreen(container.gridX, container.gridY, container.wallSide);
-            let finalX = finalPos.x;
-            let finalY = finalPos.y;
-            if (!container.isWallItem && (container.gridW > 1 || container.gridH > 1)) {
+            let finalX, finalY;
+            if (container.isWallItem) {
+                const centerPos = this.isoToScreen(container.gridX + container.gridW / 2, container.gridY + container.gridH / 2, container.wallSide);
+                finalX = centerPos.x;
+                finalY = centerPos.y;
+            } else if (container.gridW > 1 || container.gridH > 1) {
                 let shiftX = container.gridW / 2;
                 let shiftY = container.gridH / 2;
                 if (container.name === 'Table' || container.name === 'Table2' || container.name === 'Closet') {
@@ -1989,22 +2015,29 @@ class DesignScene extends Phaser.Scene {
                 }
                 const centerPos = this.isoToScreen(container.gridX + shiftX, container.gridY + shiftY, container.wallSide);
                 finalX = centerPos.x;
-                finalY = centerPos.y; // Removed vertical shift (was -10)
+                finalY = centerPos.y;
+            } else if (container.name === 'Flower2') {
+                const finalPos = this.isoToScreen(container.gridX + 1, container.gridY + 1, container.wallSide);
+                finalX = finalPos.x;
+                finalY = finalPos.y;
+            } else {
+                const finalPos = this.isoToScreen(container.gridX, container.gridY, container.wallSide);
+                finalX = finalPos.x;
+                finalY = finalPos.y;
             }
             container.x = finalX;
             container.y = finalY;
-            
             if (container.isWallItem) {
                 container.setDepth(container.wallSide === 'left' ? 6 : 7);
             } else {
                 container.setDepth(10 + container.gridX + container.gridY);
             }
             this.gridGraphics.clear();
-            this.staticGridGraphics.clear(); // Hide grid after drag ends
+            this.staticGridGraphics.clear();
         });
 
         let lastClickTime = 0;
-        container.on('pointerdown', (pointer) => {
+        visual.on('pointerdown', (pointer) => {
             const clickTime = Date.now();
             if (clickTime - lastClickTime < 300) {
                 this.removeObject(container);
