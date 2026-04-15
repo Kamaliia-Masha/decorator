@@ -11,6 +11,7 @@ const ROOM_UNLOCKS = [1, 2, 3, 4, 5, 6, 7, 8];
 const ROOM_NAMES = ['Cozy Studio', 'Modern Apartment', 'Sunlit Loft', 'Garden Suite', 'Minimal Hideaway', 'Creative Space', 'Artist Studio', 'VIP Penthouse'];
 let isCharacterAtCounter = false; // Persistent state for character position
 let isEconomyAnimationPlayed = false; // Persistent state for reward animation
+let tutorialShown = false; // Show controls tutorial once per game session
 
 function updateCurrencyUI(showReputation = true, isDesignMode = false) {
     const display = document.getElementById('currency-display');
@@ -1293,14 +1294,13 @@ class DesignScene extends Phaser.Scene {
             this.load.image(`${item.id}_left`, `assets/wall_items/left_view/${item.file}.png?v=${version}`);
         });
 
-        // UI assets
-        this.load.image('arrow_left', 'https://img.icons8.com/m_sharp/200/FFFFFF/left.png');
-        this.load.image('arrow_right', 'https://img.icons8.com/m_sharp/200/FFFFFF/right.png');
 
     }
 
     create() {
         console.log('[DesignScene] create() start');
+        // Disable browser right-click menu so right-click can rotate items.
+        this.input.mouse.disableContextMenu();
         // Defer prescaling until after first render so loading isn't blocked.
         const sceneRef = this;
         setTimeout(() => {
@@ -1360,23 +1360,29 @@ class DesignScene extends Phaser.Scene {
             commission.requiredRemove.forEach(itemName => {
                 const isWallItem = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shelf2';
                 const size = ITEM_SIZES[itemName] || { w: 1, h: 2 };
-        
-                const freeSpace = isWallItem ? this.findRandomFreeWallSpace(size.w, size.h) : this.findRandomFreeSpace(size.w, size.h);
+                const freeSpace = isWallItem
+                    ? this.findRandomFreeWallSpace(size.w, size.h)
+                    : this.findEdgeFreeSpace(size.w, size.h);
                 if (freeSpace) {
                     this.addFurnitureObject(freeSpace.gridX, freeSpace.gridY, itemName, 0xffffff, freeSpace.wallSide || null);
                 }
             });
         }
 
-        // Add some random items to make the room look lived-in
-        const randomItemsCount = Phaser.Math.Between(2, 5);
-        const allItemNames = Object.keys(ITEM_SIZES);
+        // Add some random items to make the room look lived-in.
+        // Only include shop items (those with a "2" suffix) if the player has purchased them.
+        const shopNames = new Set(SHOP_ITEMS.map(s => s.name));
+        const availableNames = Object.keys(ITEM_SIZES).filter(
+            name => !shopNames.has(name) || purchasedItems.has(name)
+        );
+        const randomItemsCount = Phaser.Math.Between(2, 4);
         for (let i = 0; i < randomItemsCount; i++) {
-            const itemName = Phaser.Utils.Array.GetRandom(allItemNames);
+            const itemName = Phaser.Utils.Array.GetRandom(availableNames);
             const isWallItem = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shelf2';
             const size = ITEM_SIZES[itemName] || { w: 1, h: 2 };
-            
-            const freeSpace = isWallItem ? this.findRandomFreeWallSpace(size.w, size.h) : this.findRandomFreeSpace(size.w, size.h);
+            const freeSpace = isWallItem
+                ? this.findRandomFreeWallSpace(size.w, size.h)
+                : this.findEdgeFreeSpace(size.w, size.h);
             if (freeSpace) {
                 this.addFurnitureObject(freeSpace.gridX, freeSpace.gridY, itemName, 0xffffff, freeSpace.wallSide || null);
             }
@@ -1433,6 +1439,9 @@ class DesignScene extends Phaser.Scene {
         });
 
         this.updateUI();
+        this.showTutorial();
+        // Track which required items still need a praise reaction this session
+        this._pendingPraise = [...(getCurrentCommission().requiredAdd || [])];
 
         window.addFurniture = (type) => {
             let color = 0xcccccc;
@@ -1452,10 +1461,43 @@ class DesignScene extends Phaser.Scene {
             
             const isWallItem = (type === 'Window' || type === 'Mirror' || type === 'Mirror2' || type === 'Clock2' || type === 'Shelf2');
             const size = ITEM_SIZES[type] || { w: 2, h: 2 };
-            const pos = isWallItem ? this.findFreeWallSpace(size.w, size.h) : this.findFreeSpace(size.w, size.h);
+            let pos;
+            if (type === 'Window') {
+                // The left wall's x-axis goes down-left in screen space, so a larger
+                // gridX pushes the window lower on screen.  Use x=2 (slightly off-center
+                // toward the room corner) so the window appears high up on the wall.
+                const surface = SURFACES['left'];
+                const prefX = 2;
+                const prefY = surface.rows - size.h; // max y = top of wall
+                // Try preferred spot first; then scan top-down for the next best slot.
+                if (this.isSpaceFree(prefX, prefY, size.w, size.h, null, 'left')) {
+                    pos = { gridX: prefX, gridY: prefY, wallSide: 'left' };
+                } else {
+                    // Fallback: highest free position on either wall
+                    pos = null;
+                    outer: for (const side of ['left', 'right']) {
+                        const s = SURFACES[side];
+                        for (let y = s.rows - size.h; y >= 0; y--) {
+                            for (let x = 0; x <= s.cols - size.w; x++) {
+                                if (this.isSpaceFree(x, y, size.w, size.h, null, side)) {
+                                    pos = { gridX: x, gridY: y, wallSide: side };
+                                    break outer;
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                pos = isWallItem ? this.findFreeWallSpace(size.w, size.h) : this.findFreeSpace(size.w, size.h);
+            }
             
             if (pos) {
                 this.addFurnitureObject(pos.gridX, pos.gridY, type, color, pos.wallSide);
+                const idx = this._pendingPraise.indexOf(type);
+                if (idx !== -1) {
+                    this._pendingPraise.splice(idx, 1);
+                    this.showPraiseMessage(type);
+                }
             } else {
                 alert("No free space!");
             }
@@ -1647,11 +1689,6 @@ class DesignScene extends Phaser.Scene {
         // Grid bounds check
         if (gridX < minCoord || gridY < minCoord || gridX + sizeW > surface.cols || gridY + sizeH > surface.rows) return false;
 
-        // Restriction: Wall items cannot be placed at the corner (gridX = 0)
-        if (side === 'left' || side === 'right') {
-            if (gridX === 0) return false;
-        }
-
         // Matrix intersection check
         for (let y = gridY; y < gridY + sizeH; y++) {
             for (let x = gridX; x < gridX + sizeW; x++) {
@@ -1716,6 +1753,25 @@ class DesignScene extends Phaser.Scene {
             }
         }
         return null;
+    }
+
+    // Places items near the two walls. The walls meet at the back corner (gridX=0,
+    // gridY=0 = floor0). The right wall runs along gridY=0 (increasing gridX) and
+    // the left wall runs along gridX=0 (increasing gridY).
+    // "Near a wall" = within the first 3 cells of either axis: x <= 3 OR y <= 3.
+    // Falls back to any free cell if the wall zone is full.
+    findEdgeFreeSpace(sizeW, sizeH) {
+        const surface = SURFACES.floor;
+        const nearWall = [], anywhere = [];
+        for (let y = 0; y <= surface.rows - sizeH; y++) {
+            for (let x = 0; x <= surface.cols - sizeW; x++) {
+                if (!this.isSpaceFree(x, y, sizeW, sizeH)) continue;
+                if (x <= 3 || y <= 3) nearWall.push({ gridX: x, gridY: y });
+                else anywhere.push({ gridX: x, gridY: y });
+            }
+        }
+        const pool = nearWall.length > 0 ? nearWall : anywhere;
+        return pool.length > 0 ? Phaser.Utils.Array.GetRandom(pool) : null;
     }
 
     drawGridIndicator(gridX, gridY, sizeW, sizeH, isValid, wallSide, name = "") {
@@ -1865,18 +1921,40 @@ class DesignScene extends Phaser.Scene {
 
         const getMaxDim = (side) => {
             if (ITEM_MAX_DIM[name] !== undefined) return ITEM_MAX_DIM[name];
-            // Fallback: wall items use footprint size, floor items use legacy default
-            return isWallItem ? getWallMaxDim(side || 'left') : 150;
+            // For wall items use the smaller of left/right wall projections so the
+            // item fits on both walls at the same scale, regardless of which wall it's on.
+            return isWallItem
+                ? Math.min(getWallMaxDim('left'), getWallMaxDim('right'))
+                : 150;
         };
+
+        // Compute reference dimensions once from whichever view exists, preferring left.
+        // This makes scale identical for left and right views regardless of their
+        // individual canvas sizes (e.g. window_left 1024x1024 vs window_right 1536x1024).
+        const getRefDim = () => {
+            for (const side of ['left', 'right']) {
+                const k = getTextureKey(name, side);
+                if (k && this.textures.exists(k)) {
+                    const src = this.textures.get(k).source[0];
+                    const w = src.width || 1;
+                    const h = src.height || 1;
+                    return Math.max(w, h);
+                }
+            }
+            return Math.max(visual.width, visual.height);
+        };
+        const refDim = isWallItem ? getRefDim() : null;
 
         const updateVisualTexture = () => {
             const textureKey = getTextureKey(name, container.viewSide);
             if (textureKey && this.textures.exists(textureKey)) {
                 visual.setTexture(textureKey);
                 const maxDim = getMaxDim(container.wallSide);
-                if (visual.width > maxDim || visual.height > maxDim) {
-                    const scale = maxDim / Math.max(visual.width, visual.height);
-                    visual.setScale(scale);
+                // Use the same reference dimension for both views so they render
+                // at identical size when switching walls.
+                const dim = refDim !== null ? refDim : Math.max(visual.width, visual.height);
+                if (dim > maxDim) {
+                    visual.setScale(maxDim / dim);
                 }
             }
         };
@@ -1887,9 +1965,9 @@ class DesignScene extends Phaser.Scene {
         if (initialTexture && this.textures.exists(initialTexture)) {
             visual = this.add.image(0, 0, initialTexture);
             const maxDim = getMaxDim(wallSide);
-            if (visual.width > maxDim || visual.height > maxDim) {
-                const scale = maxDim / Math.max(visual.width, visual.height);
-                visual.setScale(scale);
+            const dim = refDim !== null ? refDim : Math.max(visual.width, visual.height);
+            if (dim > maxDim) {
+                visual.setScale(maxDim / dim);
             }
         } else {
             // Placeholder if image is missing
@@ -1935,54 +2013,6 @@ class DesignScene extends Phaser.Scene {
 
         // Arrows for floor items
         const isNoRotateItem = (name === 'Lamp' || name === 'Plant' || name === 'Flower2');
-        if (!isWallItem && !isNoRotateItem) {
-            const arrowR = this.add.image(0, 0, 'arrow_right').setScale(0.12).setInteractive({ useHandCursor: true }).setTint(0xf18c8e);
-            const arrowL = this.add.image(0, 0, 'arrow_left').setScale(0.12).setInteractive({ useHandCursor: true }).setTint(0xf18c8e);
-            
-            // Add slight hover effect for "cuteness"
-            [arrowR, arrowL].forEach(arrow => {
-                arrow.on('pointerover', () => arrow.setScale(0.14));
-                arrow.on('pointerout', () => arrow.setScale(0.12));
-            });
-            
-            container.add([arrowR, arrowL]);
-
-            const updateArrowsPosition = () => {
-                arrowR.setPosition(40, 0);
-                arrowL.setPosition(-40, 0);
-            };
-            
-            updateArrowsPosition();
-            
-            const updateArrows = () => {
-                if (container.viewSide === 'right') {
-                    arrowR.setVisible(true);
-                    arrowL.setVisible(false);
-                } else {
-                    arrowR.setVisible(false);
-                    arrowL.setVisible(true);
-                }
-            };
-            
-            updateArrows();
-            
-            arrowR.on('pointerdown', (pointer, x, y, event) => {
-                event.stopPropagation();
-                container.viewSide = 'left';
-                updateVisualTexture();
-                updateArrows();
-            });
-            
-            arrowL.on('pointerdown', (pointer, x, y, event) => {
-                event.stopPropagation();
-                container.viewSide = 'right';
-                updateVisualTexture();
-                updateArrows();
-            });
-            
-            container.updateArrows = updateArrows;
-            container.updateArrowsPosition = updateArrowsPosition;
-        }
 
         if (isNoRotateItem) {
             container.viewSide = 'right';
@@ -2132,13 +2162,23 @@ class DesignScene extends Phaser.Scene {
             this.staticGridGraphics.clear();
         });
 
-        let lastClickTime = 0;
+        let lastDownTime = 0;
         visual.on('pointerdown', (pointer) => {
-            const clickTime = Date.now();
-            if (clickTime - lastClickTime < 300) {
-                this.removeObject(container);
+            // Right-click: rotate (flip view side) for rotatable floor items
+            if (pointer.rightButtonDown()) {
+                if (!isWallItem && !isNoRotateItem) {
+                    container.viewSide = container.viewSide === 'right' ? 'left' : 'right';
+                    updateVisualTexture();
+                }
+                return;
             }
-            lastClickTime = clickTime;
+            // Left double-click: remove object
+            const now = Date.now();
+            if (now - lastDownTime < 300) {
+                this.removeObject(container);
+                return;
+            }
+            lastDownTime = now;
         });
 
         furnitureItems.push(container);
@@ -2165,6 +2205,187 @@ class DesignScene extends Phaser.Scene {
         const commission = getCurrentCommission();
         document.getElementById('resident-name').innerText = commission.residentName;
         document.getElementById('brief-text').innerText = commission.brief;
+    }
+
+    showPraiseMessage(itemType) {
+        const commission = getCurrentCommission();
+
+        const byItem = {
+            Plant:   ['"Finally some green!"', '"It\'s alive! I love it!"'],
+            Lamp:    ['"Perfect lighting!"',   '"So cozy now!"'],
+            Table:   ['"Now I have somewhere to eat!"', '"Just what I needed!"'],
+            Chair:   ['"I can finally sit down!"', '"Great choice!"'],
+            Bed:     ['"I\'m going to sleep so well!"', '"Dream come true!"'],
+            Closet:  ['"Now I can organise my stuff!"', '"Perfect fit!"'],
+            Window:  ['"Look at that view!"', '"So much light now!"'],
+            Mirror:  ['"I can finally see myself!"', '"Gorgeous!"'],
+        };
+        const fallback = [
+            '"Yes! That\'s exactly it!"',
+            '"Oh wow, I love it!"',
+            '"You read my mind!"',
+        ];
+        const pool = byItem[itemType] || fallback;
+        const text = pool[Math.floor(Math.random() * pool.length)];
+
+        const px = 400, py = 400;
+        const pill = this.add.container(px, py).setDepth(9998).setAlpha(0);
+
+        // Measure text first so background fits perfectly
+        const label = this.add.text(0, 0, text, {
+            fontSize: '14px', fontWeight: 'bold', color: '#5f4b32',
+            fontFamily: 'Segoe UI, Arial, sans-serif'
+        }).setOrigin(0.5);
+
+        const padX = 22, padY = 10;
+        const bw = label.width + padX * 2;
+        const bh = label.height + padY * 2;
+
+        const bg = this.add.graphics();
+        bg.fillStyle(0xffffff, 0.96);
+        bg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
+        bg.lineStyle(2, 0xf18c8e, 1);
+        bg.strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, bh / 2);
+
+        pill.addAt(bg, 0);
+        pill.add(label);
+
+        // Fade in → pause → drift up + fade out
+        this.tweens.add({
+            targets: pill, alpha: 1, duration: 160, ease: 'Quad.easeOut',
+            onComplete: () => {
+                this.tweens.add({
+                    targets: pill, alpha: 0, y: py - 50,
+                    duration: 550, delay: 1400, ease: 'Quad.easeIn',
+                    onComplete: () => pill.destroy()
+                });
+            }
+        });
+    }
+
+    showTutorial() {
+        if (tutorialShown) return;
+        tutorialShown = true;
+
+        const cx = 400, cy = 250;
+        const cardW = 370, cardH = 270;
+        const cardX = cx - cardW / 2;
+        const cardY = cy - cardH / 2;
+
+        const overlay = this.add.container(0, 0).setDepth(99999).setAlpha(0);
+
+        // Dark scrim
+        const scrim = this.add.rectangle(cx, cy, 800, 500, 0x2d1f14, 0.6)
+            .setInteractive();
+        overlay.add(scrim);
+
+        // Drop shadow (offset rect)
+        const shadow = this.add.graphics();
+        shadow.fillStyle(0x000000, 0.18);
+        shadow.fillRoundedRect(cardX + 6, cardY + 8, cardW, cardH, 20);
+        overlay.add(shadow);
+
+        // Card body
+        const card = this.add.graphics();
+        card.fillStyle(0xfdf6e3, 1);
+        card.fillRoundedRect(cardX, cardY, cardW, cardH, 20);
+        card.lineStyle(2.5, 0xe6d5c3, 1);
+        card.strokeRoundedRect(cardX, cardY, cardW, cardH, 20);
+        overlay.add(card);
+
+        // Pink header band
+        const hdrH = 50;
+        const hdr = this.add.graphics();
+        hdr.fillStyle(0xf18c8e, 1);
+        hdr.fillRoundedRect(cardX, cardY, cardW, hdrH, 20);
+        hdr.fillRect(cardX, cardY + 20, cardW, hdrH - 20); // square bottom
+        overlay.add(hdr);
+
+        const titleText = this.add.text(cx, cardY + hdrH / 2, 'HOW TO PLAY', {
+            fontSize: '17px', fontWeight: 'bold', color: '#ffffff',
+            fontFamily: 'Segoe UI, Arial, sans-serif'
+        }).setOrigin(0.5);
+        overlay.add(titleText);
+
+        // Rows: [ chipText, boldLabel, desc ]
+        const rows = [
+            ['DRAG',     'Move',   'drag an item to reposition it'],
+            ['RMB',      'Rotate', 'right-click to flip its direction'],
+            ['2× CLICK', 'Remove', 'double-click to take it out'],
+        ];
+        const rowY0 = cardY + hdrH + 20;
+        const rowGap = 50;
+
+        rows.forEach(([chip, label, desc], i) => {
+            const ry = rowY0 + i * rowGap + 12;
+
+            // Chip background
+            const chipW = chip.length <= 3 ? 48 : 72;
+            const chipG = this.add.graphics();
+            chipG.fillStyle(0xf18c8e, 0.18);
+            chipG.fillRoundedRect(cardX + 18, ry - 13, chipW, 26, 8);
+            chipG.lineStyle(1.5, 0xf18c8e, 0.7);
+            chipG.strokeRoundedRect(cardX + 18, ry - 13, chipW, 26, 8);
+            overlay.add(chipG);
+
+            const chipText = this.add.text(cardX + 18 + chipW / 2, ry, chip, {
+                fontSize: '11px', fontWeight: 'bold', color: '#f18c8e',
+                fontFamily: 'Segoe UI, Arial, sans-serif'
+            }).setOrigin(0.5);
+            overlay.add(chipText);
+
+            const labelText = this.add.text(cardX + 18 + chipW + 12, ry, label, {
+                fontSize: '15px', fontWeight: 'bold', color: '#5f4b32',
+                fontFamily: 'Segoe UI, Arial, sans-serif'
+            }).setOrigin(0, 0.5);
+            overlay.add(labelText);
+
+            const descText = this.add.text(cardX + 18 + chipW + 12, ry + 17, desc, {
+                fontSize: '12px', color: '#9a8472',
+                fontFamily: 'Segoe UI, Arial, sans-serif'
+            }).setOrigin(0, 0.5);
+            overlay.add(descText);
+        });
+
+        // "Got it!" button
+        const btnY = cardY + cardH - 30;
+        const btnW = 130, btnH = 36;
+        const btnG = this.add.graphics();
+        const drawBtn = (color) => {
+            btnG.clear();
+            btnG.fillStyle(color, 1);
+            btnG.fillRoundedRect(cx - btnW / 2, btnY - btnH / 2, btnW, btnH, 12);
+        };
+        drawBtn(0x8fb9a8);
+        overlay.add(btnG);
+
+        const btnLabel = this.add.text(cx, btnY, 'Got it!  ✓', {
+            fontSize: '15px', fontWeight: 'bold', color: '#ffffff',
+            fontFamily: 'Segoe UI, Arial, sans-serif'
+        }).setOrigin(0.5);
+        overlay.add(btnLabel);
+
+        const btnZone = this.add.zone(cx, btnY, btnW, btnH).setInteractive({ useHandCursor: true });
+        overlay.add(btnZone);
+
+        const dismiss = () => {
+            this.tweens.add({
+                targets: overlay, alpha: 0, duration: 220,
+                onComplete: () => overlay.destroy()
+            });
+        };
+
+        btnZone.on('pointerover', () => drawBtn(0x7aa895));
+        btnZone.on('pointerout',  () => drawBtn(0x8fb9a8));
+        btnZone.on('pointerdown', dismiss);
+        scrim.on('pointerdown', dismiss);
+
+        // Slide-up + fade-in
+        overlay.y = 18;
+        this.tweens.add({
+            targets: overlay, alpha: 1, y: 0,
+            duration: 320, ease: 'Back.easeOut'
+        });
     }
 }
 
