@@ -222,6 +222,49 @@ const SHOP_ITEMS = [
     { name: 'Shelf2', price: 20, category: 'walls', texture: 'shelf2', displayName: 'Shelf 2' }
 ];
 
+// Pre-scales a large texture by drawing it into a small canvas, then uploading
+// that canvas back into the existing WebGL texture slot.  This replaces the raw
+// GPU upload of a ~1000px image with a ~300px one, so the GPU only needs a 2x
+// downscale instead of 6-7x, which eliminates the blocky appearance.
+// The function is a no-op if the texture was already prescaled this session.
+function prescaleTexture(scene, key, maxSize = 300) {
+    const texture = scene.textures.get(key);
+    if (!texture || !texture.source.length) return;
+    const src = texture.source[0];
+    // Skip if already done this session (marked on first run).
+    if (src._prescaled) return;
+    const img = src.image;
+    if (!img) return;
+    const origW = img.naturalWidth || img.width || src.width;
+    const origH = img.naturalHeight || img.height || src.height;
+    if (!origW || !origH || Math.max(origW, origH) <= maxSize) return;
+    // POT textures already get mipmaps from Phaser — prescaling would break them.
+    const isPOT = (n) => n > 0 && (n & (n - 1)) === 0;
+    if (isPOT(origW) && isPOT(origH)) return;
+
+    // Compute target size preserving aspect ratio.
+    const scale = maxSize / Math.max(origW, origH);
+    const dstW = Math.max(1, Math.round(origW * scale));
+    const dstH = Math.max(1, Math.round(origH * scale));
+
+    // Single high-quality draw — modern browsers handle one-step smoothing well.
+    const canvas = document.createElement('canvas');
+    canvas.width = dstW;
+    canvas.height = dstH;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, dstW, dstH);
+
+    // Upload into the existing GL texture. UVs remain 0..1 so no frame metadata
+    // needs updating — the GPU just samples the smaller texture at full range.
+    const renderer = scene.game.renderer;
+    if (renderer && renderer.gl && src.glTexture) {
+        renderer.updateCanvasTexture(canvas, src.glTexture, false, true);
+        src._prescaled = true;
+    }
+}
+
 // --- Scene: Room Selection ---
 class RoomSelectScene extends Phaser.Scene {
     constructor() {
@@ -349,6 +392,34 @@ class ShopScene extends Phaser.Scene {
 
     create() {
         updateCurrencyUI(true);
+        // Build smooth 140px canvas thumbnails for shop items before any images
+        // are created, so the very first render is already anti-aliased.
+        // addCanvas() works in Phaser 3.60 without touching GL internals.
+        const THUMB_SIZE = 140;
+        ['table2', 'chair2', 'flower2', 'puffic2', 'stairs2', 'mirror2', 'clock2', 'shelf2'].forEach(key => {
+            const thumbKey = key + '_thumb';
+            if (this.textures.exists(thumbKey)) return;
+            try {
+                const tex = this.textures.get(key);
+                if (!tex || !tex.source.length) return;
+                const img = tex.source[0].image;
+                if (!img) return;
+                const origW = img.naturalWidth || img.width || 0;
+                const origH = img.naturalHeight || img.height || 0;
+                if (!origW || !origH || Math.max(origW, origH) <= THUMB_SIZE) return;
+                const s = THUMB_SIZE / Math.max(origW, origH);
+                const dstW = Math.max(1, Math.round(origW * s));
+                const dstH = Math.max(1, Math.round(origH * s));
+                const cv = document.createElement('canvas');
+                cv.width = dstW;
+                cv.height = dstH;
+                const ctx = cv.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, dstW, dstH);
+                this.textures.addCanvas(thumbKey, cv);
+            } catch (e) { /* skip on error */ }
+        });
         const bg = this.add.image(400, 250, 'agency_bg');
         bg.setDisplaySize(800, 500);
         bg.setAlpha(0.3);
@@ -430,8 +501,10 @@ class ShopScene extends Phaser.Scene {
             cardBg.strokeRoundedRect(x - 65, y - 50, 130, 140, 12);
             this.itemGroup.add(cardBg);
 
-            // Item image
-            const img = this.add.image(x, y, item.texture);
+            // Item image — use pre-built thumbnail if available
+            const thumbKey = item.texture + '_thumb';
+            const displayKey = this.textures.exists(thumbKey) ? thumbKey : item.texture;
+            const img = this.add.image(x, y, displayKey);
             const scale = 70 / Math.max(img.width, img.height);
             img.setScale(scale);
             this.itemGroup.add(img);
@@ -545,19 +618,30 @@ class BriefingScene extends Phaser.Scene {
         this.load.image('dog', 'assets/custumers/dog.png?v=' + version);
         this.load.image('fox', 'assets/custumers/fox.png?v=' + version);
         this.load.image('pig', 'assets/custumers/pig.png?v=' + version);
-        
+
         // Load all shop assets from right_view (per requirements)
         this.load.image('table2', 'assets/floor_items/right_view/table2.png?v=' + version);
         this.load.image('chair2', 'assets/floor_items/right_view/chair2.png?v=' + version);
         this.load.image('flower2', 'assets/floor_items/right_view/flower2.png?v=' + version);
         this.load.image('puffic2', 'assets/floor_items/right_view/puffic2.png?v=' + version);
         this.load.image('stairs2', 'assets/floor_items/right_view/stairs2.png?v=' + version);
-        this.load.image('mirror2', 'assets/wall_items/right_view/mirror.png?v=' + version); 
+        this.load.image('mirror2', 'assets/wall_items/right_view/mirror.png?v=' + version);
         this.load.image('clock2', 'assets/wall_items/right_view/clock2.png?v=' + version);
         this.load.image('shelf2', 'assets/wall_items/right_view/shelf2.png?v=' + version);
+
     }
 
     create() {
+        console.log('[BriefingScene] create() start');
+        // Defer prescaling until after first render so loading isn't blocked.
+        const sceneRef = this;
+        setTimeout(() => {
+            ['table2', 'chair2', 'flower2', 'puffic2', 'stairs2', 'mirror2', 'clock2', 'shelf2']
+                .forEach(key => {
+                    try { prescaleTexture(sceneRef, key); } catch (e) { /* skip */ }
+                });
+        }, 0);
+
         if (document.getElementById('ui-panel')) {
             document.getElementById('ui-panel').style.display = 'none';
         }
@@ -1210,11 +1294,23 @@ class DesignScene extends Phaser.Scene {
         });
 
         // UI assets
-        this.load.image('arrow_left', 'https://img.icons8.com/m_sharp/200/FFFFFF/left.png'); 
-        this.load.image('arrow_right', 'https://img.icons8.com/m_sharp/200/FFFFFF/right.png'); 
+        this.load.image('arrow_left', 'https://img.icons8.com/m_sharp/200/FFFFFF/left.png');
+        this.load.image('arrow_right', 'https://img.icons8.com/m_sharp/200/FFFFFF/right.png');
+
     }
 
     create() {
+        console.log('[DesignScene] create() start');
+        // Defer prescaling until after first render so loading isn't blocked.
+        const sceneRef = this;
+        setTimeout(() => {
+            Object.keys(sceneRef.textures.list)
+                .filter(k => (k.endsWith('_right') || k.endsWith('_left')) && !k.startsWith('arrow'))
+                .forEach(key => {
+                    try { prescaleTexture(sceneRef, key); } catch (e) { /* skip */ }
+                });
+        }, 0);
+
         furnitureItems = []; // Reset items
         resetOccupancy(); // Reset occupancy grid when entering a new design project
 
@@ -2078,6 +2174,24 @@ const config = {
     height: 500,
     parent: 'game-container',
     transparent: true, // Make Phaser transparent to see CSS background
+    antialias: true,
+    resolution: window.devicePixelRatio || 1,
+    render: {
+        antialias: true,
+        antialiasGL: true,
+        mipmapFilter: 'LINEAR_MIPMAP_LINEAR',
+        roundPixels: false,
+    },
+    callbacks: {
+        postBoot: (game) => {
+            // For Canvas renderer fallback: enable high-quality image smoothing
+            if (game.renderer.type === Phaser.CANVAS) {
+                const ctx = game.canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+            }
+        }
+    },
     scene: [BriefingScene, DesignScene, ShopScene, RoomSelectScene]
 };
 
