@@ -1,9 +1,72 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 
 namespace DecoratorGame
 {
+    public static class GameVersionInfo
+    {
+        public const string GAME_VERSION = "1.0.0";
+    }
+
+    public record FurnitureSaveData(string Id, string Name, string Category, int X, int Y);
+
+    public record SaveData
+    {
+        public int SchemaVersion { get; init; }
+        public string GameVersion { get; init; } = "";
+        public int Currency { get; init; }
+        public string RoomName { get; init; } = "";
+        public List<FurnitureSaveData> Items { get; init; } = new();
+    }
+
+    public static class SaveManager
+    {
+        public const int CURRENT_SCHEMA_VERSION = 1;
+        private const string DEFAULT_SAVE_FILE = "save.json";
+
+        public static void Save(GameSession session) => SaveTo(session, DEFAULT_SAVE_FILE);
+
+        public static SaveData? Load() => LoadFrom(DEFAULT_SAVE_FILE);
+
+        public static void SaveTo(GameSession session, string path)
+        {
+            var data = new SaveData
+            {
+                SchemaVersion = CURRENT_SCHEMA_VERSION,
+                GameVersion = GameVersionInfo.GAME_VERSION,
+                Currency = session.Currency,
+                RoomName = session.CurrentRoom?.Name ?? "",
+                Items = session.CurrentRoom?.Items
+                    .Select(i => new FurnitureSaveData(i.Id, i.Name, i.Category.ToString(), i.Position.x, i.Position.y))
+                    .ToList() ?? new List<FurnitureSaveData>()
+            };
+            var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(path, json);
+            Console.WriteLine($"Game saved (schema v{CURRENT_SCHEMA_VERSION}, game v{GameVersionInfo.GAME_VERSION}).");
+        }
+
+        public static SaveData? LoadFrom(string path)
+        {
+            if (!File.Exists(path)) return null;
+            var json = File.ReadAllText(path);
+            var data = JsonSerializer.Deserialize<SaveData>(json);
+            if (data == null) return null;
+            return Migrate(data);
+        }
+
+        public static SaveData Migrate(SaveData data)
+        {
+            if (data.SchemaVersion >= CURRENT_SCHEMA_VERSION) return data;
+            // v0 → v1: SchemaVersion field was absent (defaults to 0); update to current.
+            Console.WriteLine($"Migrating save from schema v{data.SchemaVersion} to v{CURRENT_SCHEMA_VERSION}.");
+            return data with { SchemaVersion = CURRENT_SCHEMA_VERSION };
+        }
+    }
+
+
     public enum FurnitureCategory
     {
         Chair, Table, Bed, Plant, Lamp, Rug, Window, WallDecor
@@ -102,7 +165,7 @@ namespace DecoratorGame
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Welcome to Decorator MVP!");
+            Console.WriteLine($"Welcome to Decorator MVP! (v{GameVersionInfo.GAME_VERSION})");
             
             var session = new GameSession();
             
@@ -128,7 +191,7 @@ namespace DecoratorGame
             bool running = true;
             while (running)
             {
-                Console.WriteLine("\nCommands: [list], [add <name> <cat>], [remove <id>], [move <id> <x> <y>], [submit], [exit]");
+                Console.WriteLine("\nCommands: [list], [add <name> <cat>], [remove <id>], [move <id> <x> <y>], [submit], [save], [load], [exit]");
                 Console.Write("> ");
                 var rawInput = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(rawInput)) continue;
@@ -178,6 +241,29 @@ namespace DecoratorGame
                     case "submit":
                         session.Submit();
                         running = false;
+                        break;
+                    case "save":
+                        SaveManager.Save(session);
+                        break;
+                    case "load":
+                        var saveData = SaveManager.Load();
+                        if (saveData == null)
+                        {
+                            Console.WriteLine("No save file found.");
+                        }
+                        else
+                        {
+                            session.CurrentRoom.Items.Clear();
+                            foreach (var item in saveData.Items)
+                            {
+                                if (Enum.TryParse<FurnitureCategory>(item.Category, out var loadedCat))
+                                {
+                                    var loaded = new FurnitureItem(item.Name, loadedCat, item.X, item.Y) { Id = item.Id };
+                                    session.CurrentRoom.Items.Add(loaded);
+                                }
+                            }
+                            Console.WriteLine($"Game loaded (schema v{saveData.SchemaVersion}, game v{saveData.GameVersion}).");
+                        }
                         break;
                     case "exit":
                         running = false;
