@@ -2,6 +2,13 @@
 
 The project is a 2D decorator game powered by the **Phaser 3** engine. You play as an interior design agent, fulfilling client orders.
 
+## 🌐 Play Online
+
+The game is deployed and available at:
+**https://zingy-horse-f22bb2.netlify.app/**
+
+---
+
 ## 🚀 How to Run the Game Locally
 
 Since the game uses external resources (assets) and loads them via scripts, browsers block direct launching of the `index.html` file via `file://` (CORS error). You need to run a simple local HTTP server.
