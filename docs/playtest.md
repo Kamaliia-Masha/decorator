@@ -10,3 +10,4 @@
 
 - https://github.com/tm-a-t/deck-of-cats/issues/29
 - https://github.com/artem3605/probabimals/issues/17
+- https://github.com/LDPix/Rengeteg/issues/3
