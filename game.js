@@ -1125,23 +1125,22 @@ const ITEM_SIZES = {
     'Table': { w: 2, h: 2 },
     'Bed': { w: 2, h: 2 },
     'Closet': { w: 2, h: 2 },
-    'Window': { w: 2, h: 4 },
-    'Mirror': { w: 1, h: 4 },
+    'Window': { w: 2, h: 2 },
+    'Mirror': { w: 1, h: 2 },
     'Table2': { w: 2, h: 2 },
     'Chair2': { w: 1, h: 1 },
     'Flower2': { w: 1, h: 1 },
     'Puffic2': { w: 1, h: 1 },
     'Stairs2': { w: 1, h: 1 },
-    'Mirror2': { w: 1, h: 4 },
-    'Clock2': { w: 2, h: 2 },
+    'Mirror2': { w: 1, h: 2 },
+    'Clock2': { w: 2, h: 1 },
     'Shelf2': { w: 2, h: 1 }
 };
 
 // Maximum visual dimension (pixels) per item.
 // 1 floor cell ≈ 59px screen diagonal; 1 wall cell ≈ 30px.
 // 1×1 floor items are visually smaller than 2×2 items.
-// Wall items are not listed here — they use getWallMaxDim() (footprint-based).
-// Exception: Clock2 is now 2×2 wall cells, getWallMaxDim gives ~59px which is fine.
+// Wall items use fixed maxDim values (same as original rows=10 sizing).
 const ITEM_MAX_DIM = {
     // --- 1×1 floor items (smaller than 2×2) ---
     'Chair':   135,   // dining chair
@@ -1156,6 +1155,12 @@ const ITEM_MAX_DIM = {
     'Table2':  148,   // side / coffee table
     'Bed':     150,   // bed
     'Closet':  150,   // wardrobe — 2×2 indicator ≈ 117px, 150px has minor acceptable overflow
+    // --- wall items (fixed to original visual size, independent of grid rows) ---
+    'Window':  84,
+    'Mirror':  68,
+    'Mirror2': 68,
+    'Clock2':  59,
+    'Shelf2':  58,
 };
 
 const DISPLAY_WIDTH = 800;
@@ -1231,8 +1236,8 @@ let SURFACES = {};
 // --- Grid Occupancy Matrix ---
 const GRID_OCCUPANCY = {
     floor: Array(12).fill().map(() => Array(12).fill(null)),
-    left: Array(10).fill().map(() => Array(10).fill(null)),
-    right: Array(10).fill().map(() => Array(10).fill(null))
+    left: Array(4).fill().map(() => Array(10).fill(null)),
+    right: Array(4).fill().map(() => Array(10).fill(null))
 };
 
 function updateOccupancy(item, clear = false) {
@@ -1242,7 +1247,7 @@ function updateOccupancy(item, clear = false) {
 
     for (let y = item.gridY; y < item.gridY + item.gridH; y++) {
         for (let x = item.gridX; x < item.gridX + item.gridW; x++) {
-            if (y >= 0 && y < 10 && x >= 0 && x < 10) {
+            if (y >= 0 && y < matrix.length && x >= 0 && x < matrix[0].length) {
                 matrix[y][x] = clear ? null : item;
             }
         }
@@ -1253,8 +1258,8 @@ function updateOccupancy(item, clear = false) {
 
 function resetOccupancy() {
     GRID_OCCUPANCY.floor = Array(12).fill().map(() => Array(12).fill(null));
-    GRID_OCCUPANCY.left = Array(10).fill().map(() => Array(10).fill(null));
-    GRID_OCCUPANCY.right = Array(10).fill().map(() => Array(10).fill(null));
+    GRID_OCCUPANCY.left = Array(4).fill().map(() => Array(10).fill(null));
+    GRID_OCCUPANCY.right = Array(4).fill().map(() => Array(10).fill(null));
 }
 
 class DesignScene extends Phaser.Scene {
@@ -1317,8 +1322,8 @@ class DesignScene extends Phaser.Scene {
         const p = BASE_POINTS;
         SURFACES = {
             floor: new Surface(p.floor0, p.r_floor, p.l_floor, 10, 10),
-            left: new Surface(p.wall0, p.l_wall, p.ceil, 10, 10),
-            right: new Surface(p.wall0, p.r_wall, p.ceil, 10, 10)
+            left: new Surface(p.wall0, p.l_wall, p.ceil, 10, 4),
+            right: new Surface(p.wall0, p.r_wall, p.ceil, 10, 4)
         };
         
         // Grid logic
