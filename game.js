@@ -2393,12 +2393,13 @@ class DesignScene extends Phaser.Scene {
         ];
         const rowY0 = cardY + hdrH + 20;
         const rowGap = 50;
+        const chipColW = 72; // fixed column width so all labels align
 
         rows.forEach(([chip, label, desc], i) => {
             const ry = rowY0 + i * rowGap + 12;
 
             // Chip background
-            const chipW = chip.length <= 3 ? 48 : 72;
+            const chipW = 72;
             const chipG = this.add.graphics();
             chipG.fillStyle(0xf18c8e, 0.18);
             chipG.fillRoundedRect(cardX + 18, ry - 13, chipW, 26, 8);
@@ -2412,13 +2413,14 @@ class DesignScene extends Phaser.Scene {
             }).setOrigin(0.5);
             overlay.add(chipText);
 
-            const labelText = this.add.text(cardX + 18 + chipW + 12, ry, label, {
+            const labelX = cardX + 18 + chipColW + 12;
+            const labelText = this.add.text(labelX, ry, label, {
                 fontSize: '15px', fontWeight: 'bold', color: '#5f4b32',
                 fontFamily: 'Segoe UI, Arial, sans-serif'
             }).setOrigin(0, 0.5);
             overlay.add(labelText);
 
-            const descText = this.add.text(cardX + 18 + chipW + 12, ry + 17, desc, {
+            const descText = this.add.text(labelX, ry + 17, desc, {
                 fontSize: '12px', color: '#9a8472',
                 fontFamily: 'Segoe UI, Arial, sans-serif'
             }).setOrigin(0, 0.5);
