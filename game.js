@@ -1444,7 +1444,12 @@ class DesignScene extends Phaser.Scene {
         });
 
         this.updateUI();
-        this.showTutorial();
+        this.helpBtn = this._createHelpButton();
+        if (tutorialShown) {
+            this._showHelpButton(false);
+        } else {
+            this.showTutorial();
+        }
         // Track which required items still need a praise reaction this session
         this._pendingPraise = [...(getCurrentCommission().requiredAdd || [])];
 
@@ -2268,9 +2273,77 @@ class DesignScene extends Phaser.Scene {
         });
     }
 
-    showTutorial() {
-        if (tutorialShown) return;
-        tutorialShown = true;
+    _createHelpButton() {
+        const btnX = 758, btnY = 474;
+        const r = 15;
+
+        const container = this.add.container(btnX, btnY).setDepth(50000).setVisible(false).setScale(0);
+
+        const bg = this.add.graphics();
+        bg.fillStyle(0xf18c8e, 1);
+        bg.fillCircle(0, 0, r);
+        bg.lineStyle(2, 0xe07b7d, 1);
+        bg.strokeCircle(0, 0, r);
+        container.add(bg);
+
+        const label = this.add.text(0, 0.5, '?', {
+            fontSize: '17px', fontWeight: 'bold', color: '#ffffff',
+            fontFamily: 'Segoe UI, Arial, sans-serif'
+        }).setOrigin(0.5);
+        container.add(label);
+
+        const tooltip = this.add.text(btnX - 8, btnY - r - 8, 'How to play', {
+            fontSize: '11px', color: '#ffffff',
+            backgroundColor: '#5f4b32',
+            padding: { x: 6, y: 3 },
+            fontFamily: 'Segoe UI, Arial, sans-serif'
+        }).setOrigin(1, 1).setDepth(50002).setAlpha(0);
+
+        const zone = this.add.zone(btnX, btnY, (r + 2) * 2, (r + 2) * 2)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(50001)
+            .setVisible(false);
+
+        zone.on('pointerover', () => {
+            bg.clear();
+            bg.fillStyle(0xe07b7d, 1);
+            bg.fillCircle(0, 0, r);
+            bg.lineStyle(2, 0xc86060, 1);
+            bg.strokeCircle(0, 0, r);
+            this.tweens.add({ targets: tooltip, alpha: 1, duration: 150 });
+        });
+        zone.on('pointerout', () => {
+            bg.clear();
+            bg.fillStyle(0xf18c8e, 1);
+            bg.fillCircle(0, 0, r);
+            bg.lineStyle(2, 0xe07b7d, 1);
+            bg.strokeCircle(0, 0, r);
+            this.tweens.add({ targets: tooltip, alpha: 0, duration: 150 });
+        });
+        zone.on('pointerdown', () => this.showTutorial(true));
+
+        return { container, zone, tooltip };
+    }
+
+    _showHelpButton(animated = true) {
+        const { container, zone, tooltip } = this.helpBtn;
+        zone.setVisible(true);
+        container.setVisible(true);
+        if (animated) {
+            container.setScale(0);
+            this.tweens.add({
+                targets: container,
+                scaleX: 1, scaleY: 1,
+                duration: 350,
+                ease: 'Back.easeOut'
+            });
+        } else {
+            container.setScale(1);
+        }
+    }
+
+    showTutorial(isReopen = false) {
+        if (!isReopen) tutorialShown = true;
 
         const cx = 400, cy = 250;
         const cardW = 370, cardH = 270;
@@ -2374,10 +2447,26 @@ class DesignScene extends Phaser.Scene {
         overlay.add(btnZone);
 
         const dismiss = () => {
-            this.tweens.add({
-                targets: overlay, alpha: 0, duration: 220,
-                onComplete: () => overlay.destroy()
-            });
+            if (!isReopen) {
+                // Collapse toward the "?" button (bottom-right corner)
+                this.tweens.add({
+                    targets: overlay,
+                    x: 758 - 400, y: 474 - 250,
+                    scaleX: 0.05, scaleY: 0.05,
+                    alpha: 0,
+                    duration: 380,
+                    ease: 'Cubic.easeIn',
+                    onComplete: () => {
+                        overlay.destroy();
+                        this._showHelpButton(true);
+                    }
+                });
+            } else {
+                this.tweens.add({
+                    targets: overlay, alpha: 0, duration: 220,
+                    onComplete: () => overlay.destroy()
+                });
+            }
         };
 
         btnZone.on('pointerover', () => drawBtn(0x7aa895));
