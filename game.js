@@ -13,6 +13,7 @@ let isCharacterAtCounter = false; // Persistent state for character position
 let isEconomyAnimationPlayed = false; // Persistent state for reward animation
 let tutorialShown = false; // Show controls tutorial once per game session
 let lastShopVisitCurrency = -1; // Currency at last shop visit; -1 = never visited
+let currentMusicKey = null; // Key of the currently playing track (null = off)
 
 function updateCurrencyUI(showReputation = true, isDesignMode = false) {
     const display = document.getElementById('currency-display');
@@ -224,6 +225,13 @@ const SHOP_ITEMS = [
     { name: 'Shelf2', price: 20, category: 'walls', texture: 'shelf2', displayName: 'Shelf 2' }
 ];
 
+const MUSIC_TRACKS = [
+    { key: 'music_cozy',   file: 'assets/music/cozy.mp3',   label: 'Cozy Evening' },
+    { key: 'music_jazz',   file: 'assets/music/jazz.mp3',    label: 'Soft Jazz'    },
+    { key: 'music_nature', file: 'assets/music/nature.mp3',  label: 'Nature Vibes' },
+    { key: 'music_piano',  file: 'assets/music/piano.mp3',   label: 'Gentle Piano' },
+];
+
 // Pre-scales a large texture by drawing it into a small canvas, then uploading
 // that canvas back into the existing WebGL texture slot.  This replaces the raw
 // GPU upload of a ~1000px image with a ~300px one, so the GPU only needs a 2x
@@ -265,6 +273,98 @@ function prescaleTexture(scene, key, maxSize = 300) {
         renderer.updateCanvasTexture(canvas, src.glTexture, false, true);
         src._prescaled = true;
     }
+}
+
+function playMusicTrack(key) {
+    MUSIC_TRACKS.forEach(t => {
+        const snd = game.sound.get(t.key);
+        if (snd && snd.isPlaying) snd.stop();
+    });
+    currentMusicKey = key;
+    if (!key) return;
+    let snd = game.sound.get(key);
+    if (!snd) {
+        if (!game.cache.audio.exists(key)) return;
+        snd = game.sound.add(key, { loop: true, volume: 0.4 });
+    }
+    if (!snd.isPlaying) snd.play({ loop: true, volume: 0.4 });
+}
+
+function showMusicPanel(scene) {
+    const cx = 400, cy = 250;
+    const options = [{ key: null, label: 'Off' }, ...MUSIC_TRACKS.map(t => ({ key: t.key, label: t.label }))];
+    const rowH = 36, cardW = 280;
+    const cardH = 44 + 12 + options.length * rowH + 16;
+    const cardX = cx - cardW / 2, cardY = cy - cardH / 2;
+
+    const overlay = scene.add.container(0, 0).setDepth(99999).setAlpha(0);
+
+    const scrim = scene.add.rectangle(cx, cy, 800, 500, 0x2d1f14, 0.55).setInteractive();
+    overlay.add(scrim);
+
+    const shadow = scene.add.graphics();
+    shadow.fillStyle(0x000000, 0.15);
+    shadow.fillRoundedRect(cardX + 5, cardY + 7, cardW, cardH, 18);
+    overlay.add(shadow);
+
+    const card = scene.add.graphics();
+    card.fillStyle(0xfdf6e3, 1);
+    card.fillRoundedRect(cardX, cardY, cardW, cardH, 18);
+    card.lineStyle(2, 0xe6d5c3, 1);
+    card.strokeRoundedRect(cardX, cardY, cardW, cardH, 18);
+    overlay.add(card);
+
+    const hdrH = 44;
+    const hdr = scene.add.graphics();
+    hdr.fillStyle(0xf18c8e, 1);
+    hdr.fillRoundedRect(cardX, cardY, cardW, hdrH, 18);
+    hdr.fillRect(cardX, cardY + 18, cardW, hdrH - 18);
+    overlay.add(hdr);
+    overlay.add(scene.add.text(cx, cardY + hdrH / 2, '♪  MUSIC', {
+        fontSize: '16px', fontWeight: 'bold', color: '#ffffff',
+        fontFamily: 'Segoe UI, Arial, sans-serif'
+    }).setOrigin(0.5));
+
+    const rowY0 = cardY + hdrH + 12 + rowH / 2;
+    const rowDots = [], rowBgs = [];
+
+    const redrawRows = () => {
+        options.forEach((opt, i) => {
+            const isActive = currentMusicKey === opt.key;
+            rowBgs[i].clear();
+            if (isActive) {
+                rowBgs[i].fillStyle(0xf18c8e, 0.12);
+                rowBgs[i].fillRoundedRect(cardX + 10, rowY0 + i * rowH - rowH / 2 + 2, cardW - 20, rowH - 4, 8);
+            }
+            rowDots[i].clear();
+            rowDots[i].lineStyle(1.5, isActive ? 0xf18c8e : 0xccbbaa, 1);
+            rowDots[i].strokeCircle(cardX + 26, rowY0 + i * rowH, 7);
+            if (isActive) {
+                rowDots[i].fillStyle(0xf18c8e, 1);
+                rowDots[i].fillCircle(cardX + 26, rowY0 + i * rowH, 4);
+            }
+        });
+    };
+
+    options.forEach((opt, i) => {
+        const ry = rowY0 + i * rowH;
+        const bg  = scene.add.graphics(); rowBgs.push(bg);   overlay.add(bg);
+        const dot = scene.add.graphics(); rowDots.push(dot); overlay.add(dot);
+        overlay.add(scene.add.text(cardX + 42, ry, opt.label, {
+            fontSize: '14px', color: '#5f4b32',
+            fontFamily: 'Segoe UI, Arial, sans-serif'
+        }).setOrigin(0, 0.5));
+        const zone = scene.add.zone(cx, ry, cardW - 20, rowH - 4).setInteractive({ useHandCursor: true });
+        overlay.add(zone);
+        zone.on('pointerdown', () => { playMusicTrack(opt.key); redrawRows(); });
+    });
+
+    redrawRows();
+    scrim.on('pointerdown', () => scene.tweens.add({
+        targets: overlay, alpha: 0, duration: 180, onComplete: () => overlay.destroy()
+    }));
+    overlay.y = 10;
+    scene.tweens.add({ targets: overlay, alpha: 1, y: 0, duration: 250, ease: 'Back.easeOut' });
 }
 
 // --- Scene: Room Selection ---
@@ -631,6 +731,9 @@ class BriefingScene extends Phaser.Scene {
         this.load.image('clock2', 'assets/wall_items/right_view/clock2.png?v=' + version);
         this.load.image('shelf2', 'assets/wall_items/right_view/shelf2.png?v=' + version);
 
+        MUSIC_TRACKS.forEach(t => {
+            if (!this.cache.audio.exists(t.key)) this.load.audio(t.key, t.file);
+        });
     }
 
     create() {
@@ -1034,6 +1137,42 @@ class BriefingScene extends Phaser.Scene {
         placesContainer.on('pointerdown', () => {
             this.scene.start('RoomSelectScene');
         });
+
+        // MUSIC Button
+        const musicContainer = this.add.container(85, 175);
+        musicContainer.setDepth(100);
+
+        const musicBg = this.add.graphics();
+        musicBg.fillStyle(0xf18c8e, 1);
+        musicBg.fillRoundedRect(-60, -25, 120, 50, 15);
+        musicBg.lineStyle(3, 0xffffff, 1);
+        musicBg.strokeRoundedRect(-60, -25, 120, 50, 15);
+
+        const musicText = this.add.text(0, 0, '♪ MUSIC', {
+            color: '#ffffff', fontSize: '20px', fontWeight: 'bold', fontFamily: 'Arial Black'
+        }).setOrigin(0.5);
+
+        musicContainer.add([musicBg, musicText]);
+        musicContainer.setInteractive(new Phaser.Geom.Rectangle(-60, -25, 120, 50), Phaser.Geom.Rectangle.Contains);
+        musicContainer.useHandCursor = true;
+
+        musicContainer.on('pointerover', () => {
+            musicContainer.setScale(1.1);
+            musicBg.clear();
+            musicBg.fillStyle(0xe07b7d, 1);
+            musicBg.fillRoundedRect(-60, -25, 120, 50, 15);
+            musicBg.lineStyle(3, 0xffffff, 1);
+            musicBg.strokeRoundedRect(-60, -25, 120, 50, 15);
+        });
+        musicContainer.on('pointerout', () => {
+            musicContainer.setScale(1.0);
+            musicBg.clear();
+            musicBg.fillStyle(0xf18c8e, 1);
+            musicBg.fillRoundedRect(-60, -25, 120, 50, 15);
+            musicBg.lineStyle(3, 0xffffff, 1);
+            musicBg.strokeRoundedRect(-60, -25, 120, 50, 15);
+        });
+        musicContainer.on('pointerdown', () => showMusicPanel(this));
 
         // Coins counter
         this.currencyText = this.add.text(780, 20, `Coins: ${currency}`, { 
@@ -1473,6 +1612,7 @@ class DesignScene extends Phaser.Scene {
 
         this.updateUI();
         this.helpBtn = this._createHelpButton();
+        this._createMusicButton();
         if (tutorialShown) {
             this._showHelpButton(false);
         } else {
@@ -2510,6 +2650,42 @@ class DesignScene extends Phaser.Scene {
             targets: overlay, alpha: 1, y: 0,
             duration: 320, ease: 'Back.easeOut'
         });
+    }
+
+    _createMusicButton() {
+        const btnX = 42, btnY = 474, r = 15;
+        const container = this.add.container(btnX, btnY).setDepth(50000);
+
+        const bg = this.add.graphics();
+        bg.fillStyle(0xf18c8e, 1);
+        bg.fillCircle(0, 0, r);
+        bg.lineStyle(2, 0xe07b7d, 1);
+        bg.strokeCircle(0, 0, r);
+        container.add(bg);
+
+        container.add(this.add.text(0, 0.5, '♪', {
+            fontSize: '16px', fontWeight: 'bold', color: '#ffffff',
+            fontFamily: 'Segoe UI, Arial, sans-serif'
+        }).setOrigin(0.5));
+
+        const zone = this.add.zone(btnX, btnY, (r + 2) * 2, (r + 2) * 2)
+            .setInteractive({ useHandCursor: true }).setDepth(50001);
+
+        zone.on('pointerover', () => {
+            bg.clear();
+            bg.fillStyle(0xe07b7d, 1);
+            bg.fillCircle(0, 0, r);
+            bg.lineStyle(2, 0xc86060, 1);
+            bg.strokeCircle(0, 0, r);
+        });
+        zone.on('pointerout', () => {
+            bg.clear();
+            bg.fillStyle(0xf18c8e, 1);
+            bg.fillCircle(0, 0, r);
+            bg.lineStyle(2, 0xe07b7d, 1);
+            bg.strokeCircle(0, 0, r);
+        });
+        zone.on('pointerdown', () => showMusicPanel(this));
     }
 }
 
