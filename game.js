@@ -12,6 +12,7 @@ const ROOM_NAMES = ['Cozy Studio', 'Modern Apartment', 'Sunlit Loft', 'Garden Su
 let isCharacterAtCounter = false; // Persistent state for character position
 let isEconomyAnimationPlayed = false; // Persistent state for reward animation
 let tutorialShown = false; // Show controls tutorial once per game session
+let lastShopVisitCurrency = -1; // Currency at last shop visit; -1 = never visited
 
 function updateCurrencyUI(showReputation = true, isDesignMode = false) {
     const display = document.getElementById('currency-display');
@@ -343,7 +344,6 @@ class RoomSelectScene extends Phaser.Scene {
                 btn.on('pointerout', () => btn.setStyle({ backgroundColor: '#f18c8e' }));
                 btn.on('pointerdown', () => {
                     selectedRoom = i;
-                    currentLevel++; // Move to next level when picking a new room
                     this.scene.start('BriefingScene', { result: null });
                 });
             } else {
@@ -392,6 +392,7 @@ class ShopScene extends Phaser.Scene {
     }
 
     create() {
+        lastShopVisitCurrency = currency;
         updateCurrencyUI(true);
         // Build smooth 140px canvas thumbnails for shop items before any images
         // are created, so the very first render is already anti-aliased.
@@ -896,22 +897,49 @@ class BriefingScene extends Phaser.Scene {
         }).setOrigin(0.5, 0.5);
         
         shopContainer.add([shopSignBg, shopSignText]);
-        
+
+        const hasAffordableShopItems = lastShopVisitCurrency === -1 &&
+            SHOP_ITEMS.some(item => !purchasedItems.has(item.name) && currency >= item.price);
+
+        if (hasAffordableShopItems) {
+            const shopNotifyCircle = this.add.graphics();
+            shopNotifyCircle.fillStyle(0xff0000, 1);
+            shopNotifyCircle.fillCircle(55, -25, 12);
+            shopNotifyCircle.lineStyle(2, 0xffffff, 1);
+            shopNotifyCircle.strokeCircle(55, -25, 12);
+
+            const shopNotifyText = this.add.text(55, -25, '!', {
+                color: '#ffffff',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                fontFamily: 'Arial Black'
+            }).setOrigin(0.5);
+
+            shopContainer.add([shopNotifyCircle, shopNotifyText]);
+
+            this.tweens.add({
+                targets: shopContainer,
+                scale: 1.05,
+                duration: 800,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+        }
+
         const shopHitArea = new Phaser.Geom.Rectangle(-60, -25, 120, 50);
         shopContainer.setInteractive(shopHitArea, Phaser.Geom.Rectangle.Contains);
         shopContainer.useHandCursor = true;
-        
-        // No floating animation for shop button
 
         shopContainer.on('pointerover', () => {
-            shopContainer.setScale(1.1);
+            shopContainer.setScale(hasAffordableShopItems ? 1.15 : 1.1);
             shopSignBg.clear();
             shopSignBg.fillStyle(0xe07b7d, 1);
             shopSignBg.fillRoundedRect(-60, -25, 120, 50, 15);
             shopSignBg.lineStyle(3, 0xffffff, 1);
             shopSignBg.strokeRoundedRect(-60, -25, 120, 50, 15);
         });
-        
+
         shopContainer.on('pointerout', () => {
             shopContainer.setScale(1.0);
             shopSignBg.clear();
