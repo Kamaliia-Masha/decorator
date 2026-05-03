@@ -1320,7 +1320,7 @@ const ITEM_SIZES = {
     'Plant': { w: 1, h: 1 },
     'Lamp': { w: 1, h: 1 },
     'Chair': { w: 1, h: 1 },
-    'Table': { w: 2, h: 2 },
+    'Table': { w: 2, h: 1 },
     'Bed': { w: 2, h: 2 },
     'Closet': { w: 2, h: 2 },
     'Window': { w: 2, h: 2 },
@@ -1349,16 +1349,21 @@ const ITEM_MAX_DIM = {
     'Puffic2':  95,   // low ottoman
     'Stairs2': 110,   // decorative stairs
     // --- 2×2 floor items (clearly larger) ---
-    'Table':   150,   // dining table
+    'Table':    90,   // dining table
     'Table2':  148,   // side / coffee table
     'Bed':     150,   // bed
     'Closet':  150,   // wardrobe — 2×2 indicator ≈ 117px, 150px has minor acceptable overflow
     // --- wall items (fixed to original visual size, independent of grid rows) ---
-    'Window':  84,
+    'Window':  120,
     'Mirror':  68,
     'Mirror2': 68,
     'Clock2':  59,
     'Shelf2':  58,
+};
+
+// Per-view overrides for items where left and right views should scale differently
+const ITEM_VIEW_MAX_DIM = {
+    'Table': { left: 130, right: 115 },
 };
 
 const DISPLAY_WIDTH = 800;
@@ -2068,8 +2073,7 @@ class DesignScene extends Phaser.Scene {
         } else if (size.w > 1 || size.h > 1) {
             let shiftX = size.w / 2;
             let shiftY = size.h / 2;
-            // For Table and Closet, user wants them shifted "by 1" (closer to walls/corners)
-            if (name === 'Table' || name === 'Table2' || name === 'Closet') {
+            if (name === 'Table2') {
                 shiftX = 0.5;
                 shiftY = 0.5;
             }
@@ -2127,6 +2131,8 @@ class DesignScene extends Phaser.Scene {
         };
 
         const getMaxDim = (side) => {
+            const viewDims = ITEM_VIEW_MAX_DIM[name];
+            if (viewDims && viewDims[container.viewSide] !== undefined) return viewDims[container.viewSide];
             if (ITEM_MAX_DIM[name] !== undefined) return ITEM_MAX_DIM[name];
             // For wall items use the smaller of left/right wall projections so the
             // item fits on both walls at the same scale, regardless of which wall it's on.
@@ -2148,7 +2154,7 @@ class DesignScene extends Phaser.Scene {
                     return Math.max(w, h);
                 }
             }
-            return Math.max(visual.width, visual.height);
+            return visual ? Math.max(visual.width, visual.height) : 150;
         };
         const refDim = isWallItem ? getRefDim() : null;
 
@@ -2206,7 +2212,7 @@ class DesignScene extends Phaser.Scene {
         
         container.addAt(visual, 0);
         // Flower2: bottom-aligned so the plant base sits at the cell's front corner
-        visual.setOrigin(0.5, name === 'Flower2' ? 1 : 0.5);
+        visual.setOrigin(0.5, name === 'Flower2' ? 1 : name === 'Closet' ? 0.82 : 0.5);
         visual.y = 0;
         // Pixel-perfect hit detection: transparent pixels are ignored, so clicking on the
         // visible part of any item selects exactly that item even if images overlap.
@@ -2281,7 +2287,7 @@ class DesignScene extends Phaser.Scene {
                 } else if (container.gridW > 1 || container.gridH > 1) {
                     let shiftX = container.gridW / 2;
                     let shiftY = container.gridH / 2;
-                    if (container.name === 'Table' || container.name === 'Table2' || container.name === 'Closet') {
+                    if (container.name === 'Table2') {
                         shiftX = 0.5;
                         shiftY = 0.5;
                     }
@@ -2342,7 +2348,7 @@ class DesignScene extends Phaser.Scene {
             } else if (container.gridW > 1 || container.gridH > 1) {
                 let shiftX = container.gridW / 2;
                 let shiftY = container.gridH / 2;
-                if (container.name === 'Table' || container.name === 'Table2' || container.name === 'Closet') {
+                if (container.name === 'Table' || container.name === 'Table2') {
                     shiftX = 0.5;
                     shiftY = 0.5;
                 }
@@ -2374,8 +2380,28 @@ class DesignScene extends Phaser.Scene {
             // Right-click: rotate (flip view side) for rotatable floor items
             if (pointer.rightButtonDown()) {
                 if (!isWallItem && !isNoRotateItem) {
-                    container.viewSide = container.viewSide === 'right' ? 'left' : 'right';
-                    updateVisualTexture();
+                    const newW = container.gridH;
+                    const newH = container.gridW;
+                    updateOccupancy(container, true);
+                    const canFit = newW === newH ||
+                        this.isSpaceFree(container.gridX, container.gridY, newW, newH, null, container.wallSide || null);
+                    if (canFit) {
+                        container.gridW = newW;
+                        container.gridH = newH;
+                        container.viewSide = container.viewSide === 'right' ? 'left' : 'right';
+                        updateVisualTexture();
+                        if (newW !== newH) {
+                            const pos = this.isoToScreen(
+                                container.gridX + container.gridW / 2,
+                                container.gridY + container.gridH / 2,
+                                container.wallSide
+                            );
+                            container.x = pos.x;
+                            container.y = pos.y;
+                            container.setDepth(10 + container.gridX + container.gridY);
+                        }
+                    }
+                    updateOccupancy(container);
                 }
                 return;
             }
