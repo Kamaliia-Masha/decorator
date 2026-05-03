@@ -235,6 +235,37 @@ const MUSIC_TRACKS = [
 // Pre-scales a large texture by drawing it into a small canvas, then uploading
 // that canvas back into the existing WebGL texture slot.  This replaces the raw
 // GPU upload of a ~1000px image with a ~300px one, so the GPU only needs a 2x
+// Resize a texture to targetSize regardless of direction (up or down).
+// Uses high-quality canvas interpolation so the result is smooth at any display scale.
+function normalizeTexture(scene, key, targetSize = 300) {
+    const texture = scene.textures.get(key);
+    if (!texture || !texture.source.length) return;
+    const src = texture.source[0];
+    if (src._prescaled) return;
+    const img = src.image;
+    if (!img) return;
+    const origW = img.naturalWidth || img.width || src.width;
+    const origH = img.naturalHeight || img.height || src.height;
+    if (!origW || !origH) return;
+    const maxDim = Math.max(origW, origH);
+    if (maxDim === targetSize) return;
+    const scale = targetSize / maxDim;
+    const dstW = Math.max(1, Math.round(origW * scale));
+    const dstH = Math.max(1, Math.round(origH * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = dstW;
+    canvas.height = dstH;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, dstW, dstH);
+    const renderer = scene.game.renderer;
+    if (renderer && renderer.gl && src.glTexture) {
+        renderer.updateCanvasTexture(canvas, src.glTexture, false, true);
+        src._prescaled = true;
+    }
+}
+
 // downscale instead of 6-7x, which eliminates the blocky appearance.
 // The function is a no-op if the texture was already prescaled this session.
 function prescaleTexture(scene, key, maxSize = 300) {
@@ -1466,7 +1497,7 @@ class DesignScene extends Phaser.Scene {
             this.load.image(`${item.id}_left`, `assets/wall_items/left_view/${item.file}.png?v=${version}`);
         });
 
-
+        this.load.image('box', `assets/box.png?v=${version}`);
     }
 
     create() {
@@ -1481,9 +1512,11 @@ class DesignScene extends Phaser.Scene {
                 .forEach(key => {
                     try { prescaleTexture(sceneRef, key); } catch (e) { /* skip */ }
                 });
+            try { normalizeTexture(sceneRef, 'box', 300); } catch (e) { /* skip */ }
         }, 0);
 
         furnitureItems = []; // Reset items
+        this.boxItems = []; // Reset box items
         resetOccupancy(); // Reset occupancy grid when entering a new design project
 
         const p = BASE_POINTS;
@@ -1526,22 +1559,20 @@ class DesignScene extends Phaser.Scene {
         this.cameras.main.centerOn(400, 250);
 
 
-        // Initial placement of items (Required to remove items)
+        // Initial placement of items as boxes (Required to remove items)
         const commission = getCurrentCommission();
         if (commission.requiredRemove && Array.isArray(commission.requiredRemove)) {
             commission.requiredRemove.forEach(itemName => {
-                const isWallItem = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shelf2';
-                const size = ITEM_SIZES[itemName] || { w: 1, h: 2 };
-                const freeSpace = isWallItem
-                    ? this.findRandomFreeWallSpace(size.w, size.h)
-                    : this.findEdgeFreeSpace(size.w, size.h);
+                const isWallContent = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shelf2';
+                const boxSize = isWallContent ? { w: 1, h: 1 } : (ITEM_SIZES[itemName] || { w: 1, h: 1 });
+                const freeSpace = this.findEdgeFreeSpace(boxSize.w, boxSize.h);
                 if (freeSpace) {
-                    this.addFurnitureObject(freeSpace.gridX, freeSpace.gridY, itemName, 0xffffff, freeSpace.wallSide || null);
+                    this.addBoxObject(freeSpace.gridX, freeSpace.gridY, itemName);
                 }
             });
         }
 
-        // Add some random items to make the room look lived-in.
+        // Add some random items as boxes to make the room look lived-in.
         // Only include shop items (those with a "2" suffix) if the player has purchased them.
         const shopNames = new Set(SHOP_ITEMS.map(s => s.name));
         const availableNames = Object.keys(ITEM_SIZES).filter(
@@ -1550,13 +1581,11 @@ class DesignScene extends Phaser.Scene {
         const randomItemsCount = Phaser.Math.Between(2, 4);
         for (let i = 0; i < randomItemsCount; i++) {
             const itemName = Phaser.Utils.Array.GetRandom(availableNames);
-            const isWallItem = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shelf2';
-            const size = ITEM_SIZES[itemName] || { w: 1, h: 2 };
-            const freeSpace = isWallItem
-                ? this.findRandomFreeWallSpace(size.w, size.h)
-                : this.findEdgeFreeSpace(size.w, size.h);
+            const isWallContent = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shelf2';
+            const boxSize = isWallContent ? { w: 1, h: 1 } : (ITEM_SIZES[itemName] || { w: 1, h: 1 });
+            const freeSpace = this.findEdgeFreeSpace(boxSize.w, boxSize.h);
             if (freeSpace) {
-                this.addFurnitureObject(freeSpace.gridX, freeSpace.gridY, itemName, 0xffffff, freeSpace.wallSide || null);
+                this.addBoxObject(freeSpace.gridX, freeSpace.gridY, itemName);
             }
         }
 
@@ -2377,6 +2406,98 @@ class DesignScene extends Phaser.Scene {
             furnitureItems.splice(index, 1);
         }
         container.destroy();
+    }
+
+    addBoxObject(gridX, gridY, name) {
+        const isWallContent = (name === 'Window' || name === 'Mirror' || name === 'Mirror2' || name === 'Clock2' || name === 'Shelf2');
+        // Wall content boxes sit on the floor as a compact 1×1 box
+        const size = isWallContent ? { w: 1, h: 1 } : (ITEM_SIZES[name] || { w: 1, h: 1 });
+
+        // Always place on floor
+        let containerX, containerY;
+        if (size.w > 1 || size.h > 1) {
+            let shiftX = size.w / 2;
+            let shiftY = size.h / 2;
+            if (name === 'Table' || name === 'Table2' || name === 'Closet') {
+                shiftX = 0.5;
+                shiftY = 0.5;
+            }
+            const centerPos = this.isoToScreen(gridX + shiftX, gridY + shiftY, null);
+            containerX = centerPos.x;
+            containerY = centerPos.y;
+        } else {
+            const pos = this.isoToScreen(gridX, gridY, null);
+            containerX = pos.x;
+            containerY = pos.y;
+        }
+
+        const boxContainer = this.add.container(containerX, containerY);
+        boxContainer.gridX = gridX;
+        boxContainer.gridY = gridY;
+        boxContainer.gridW = size.w;
+        boxContainer.gridH = size.h;
+        boxContainer.wallSide = null;
+        boxContainer.isWallItem = false;
+        boxContainer.isBox = true;
+        boxContainer.boxContents = name;
+        boxContainer.isWallContent = isWallContent;
+
+        const isLarge = size.w > 1 || size.h > 1;
+        const targetSize = isLarge ? 160 : 120;
+
+        const img = this.add.image(0, 0, 'box');
+        const imgDim = Math.max(img.width, img.height);
+        if (imgDim > 0) img.setScale(targetSize / imgDim);
+
+        const hitZone = this.add.zone(0, 0, targetSize + 6, targetSize + 6)
+            .setInteractive({ useHandCursor: true });
+        boxContainer.hitZone = hitZone;
+
+        boxContainer.add([img, hitZone]);
+        boxContainer.setDepth(10 + gridX + gridY);
+
+        hitZone.on('pointerover', () => { boxContainer.setScale(1.07); });
+        hitZone.on('pointerout',  () => { boxContainer.setScale(1.0); });
+        hitZone.on('pointerdown', () => { this.openBox(boxContainer); });
+
+        updateOccupancy(boxContainer);
+        this.boxItems.push(boxContainer);
+    }
+
+    openBox(boxContainer) {
+        if (boxContainer.hitZone) boxContainer.hitZone.disableInteractive();
+
+        const idx = this.boxItems.indexOf(boxContainer);
+        if (idx !== -1) this.boxItems.splice(idx, 1);
+        updateOccupancy(boxContainer, true);
+
+        const { gridX, gridY, boxContents, isWallContent } = boxContainer;
+
+        this.tweens.add({
+            targets: boxContainer,
+            y: boxContainer.y - 10,
+            scaleX: 1.12, scaleY: 1.12,
+            duration: 90, ease: 'Power1',
+            onComplete: () => {
+                this.tweens.add({
+                    targets: boxContainer,
+                    scaleX: 0, scaleY: 0, alpha: 0,
+                    duration: 200, ease: 'Power2',
+                    onComplete: () => {
+                        boxContainer.destroy();
+                        if (isWallContent) {
+                            const wallSize = ITEM_SIZES[boxContents] || { w: 1, h: 2 };
+                            const wallSpace = this.findRandomFreeWallSpace(wallSize.w, wallSize.h);
+                            if (wallSpace) {
+                                this.addFurnitureObject(wallSpace.gridX, wallSpace.gridY, boxContents, 0xffffff, wallSpace.wallSide);
+                            }
+                        } else {
+                            this.addFurnitureObject(gridX, gridY, boxContents, 0xffffff, null);
+                        }
+                    }
+                });
+            }
+        });
     }
 
     updateUI() {
