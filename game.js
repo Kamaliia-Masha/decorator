@@ -1323,7 +1323,7 @@ const ITEM_SIZES = {
     'Table': { w: 2, h: 1 },
     'Bed': { w: 2, h: 2 },
     'Closet': { w: 2, h: 1 },
-    'Window': { w: 2, h: 2 },
+    'Window': { w: 3, h: 2 },
     'Mirror': { w: 1, h: 2 },
     'Table2': { w: 2, h: 2 },
     'Chair2': { w: 1, h: 1 },
@@ -1354,7 +1354,7 @@ const ITEM_MAX_DIM = {
     'Bed':     150,   // bed
     'Closet':  150,   // wardrobe — 2×2 indicator ≈ 117px, 150px has minor acceptable overflow
     // --- wall items (fixed to original visual size, independent of grid rows) ---
-    'Window':  120,
+    // 'Window' intentionally omitted — auto-sized to fit its 3×2 grid footprint
     'Mirror':  68,
     'Mirror2': 68,
     'Clock2':  59,
@@ -2442,16 +2442,16 @@ class DesignScene extends Phaser.Scene {
         const imgDim = Math.max(img.width, img.height);
         if (imgDim > 0) img.setScale(targetSize / imgDim);
 
-        const hitZone = this.add.zone(0, 0, targetSize + 6, targetSize + 6)
-            .setInteractive({ useHandCursor: true });
-        boxContainer.hitZone = hitZone;
+        img.setInteractive(this.input.makePixelPerfect(1));
+        if (img.input) img.input.cursor = 'pointer';
+        boxContainer.hitZone = img;
 
-        boxContainer.add([img, hitZone]);
+        boxContainer.add([img]);
         boxContainer.setDepth(10 + gridX + gridY);
 
-        hitZone.on('pointerover', () => { boxContainer.setScale(1.07); });
-        hitZone.on('pointerout',  () => { boxContainer.setScale(1.0); });
-        hitZone.on('pointerdown', () => { this.openBox(boxContainer); });
+        img.on('pointerover', () => { boxContainer.setScale(1.07); });
+        img.on('pointerout',  () => { boxContainer.setScale(1.0); });
+        img.on('pointerdown', () => { this.openBox(boxContainer); });
 
         updateOccupancy(boxContainer);
         this.boxItems.push(boxContainer);
