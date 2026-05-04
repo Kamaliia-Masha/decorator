@@ -2246,8 +2246,8 @@ class DesignScene extends Phaser.Scene {
                         shiftX = 0.5;
                         shiftY = 0.5;
                     } else if (container.name === 'Table') {
-                        shiftX = container.gridW - 0.5;
-                        shiftY = container.gridH;
+                        shiftX = container.viewSide === 'left' ? container.gridW + 0.5 : container.gridW - 0.5;
+                        shiftY = container.viewSide === 'left' ? container.gridH - 0.5 : container.gridH;
                     }
                     const centerPos = this.isoToScreen(iso.gridX + shiftX, iso.gridY + shiftY, iso.wallSide);
                     finalX = centerPos.x;
@@ -2310,8 +2310,8 @@ class DesignScene extends Phaser.Scene {
                     shiftX = 0.5;
                     shiftY = 0.5;
                 } else if (container.name === 'Table') {
-                    shiftX = container.gridW - 0.5;
-                    shiftY = container.gridH;
+                    shiftX = container.viewSide === 'left' ? container.gridW + 0.5 : container.gridW - 0.5;
+                    shiftY = container.viewSide === 'left' ? container.gridH - 0.5 : container.gridH;
                 }
                 const centerPos = this.isoToScreen(container.gridX + shiftX, container.gridY + shiftY, container.wallSide);
                 finalX = centerPos.x;
@@ -2352,9 +2352,15 @@ class DesignScene extends Phaser.Scene {
                         container.viewSide = container.viewSide === 'right' ? 'left' : 'right';
                         updateVisualTexture();
                         if (newW !== newH) {
+                            let rShiftX = container.gridW / 2;
+                            let rShiftY = container.gridH / 2;
+                            if (container.name === 'Table') {
+                                rShiftX = container.viewSide === 'left' ? container.gridW + 0.5 : container.gridW - 0.5;
+                                rShiftY = container.viewSide === 'left' ? container.gridH - 0.5 : container.gridH;
+                            }
                             const pos = this.isoToScreen(
-                                container.gridX + container.gridW / 2,
-                                container.gridY + container.gridH / 2,
+                                container.gridX + rShiftX,
+                                container.gridY + rShiftY,
                                 container.wallSide
                             );
                             container.x = pos.x;
