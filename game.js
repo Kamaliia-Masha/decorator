@@ -2436,16 +2436,16 @@ class DesignScene extends Phaser.Scene {
         const imgDim = Math.max(img.width, img.height);
         if (imgDim > 0) img.setScale(targetSize / imgDim);
 
-        const hitZone = this.add.zone(0, 0, targetSize + 6, targetSize + 6)
-            .setInteractive({ useHandCursor: true });
-        boxContainer.hitZone = hitZone;
+        img.setInteractive(this.input.makePixelPerfect(1));
+        if (img.input) img.input.cursor = 'pointer';
+        boxContainer.hitZone = img;
 
-        boxContainer.add([img, hitZone]);
+        boxContainer.add([img]);
         boxContainer.setDepth(10 + gridX + gridY);
 
-        hitZone.on('pointerover', () => { boxContainer.setScale(1.07); });
-        hitZone.on('pointerout',  () => { boxContainer.setScale(1.0); });
-        hitZone.on('pointerdown', () => { this.openBox(boxContainer); });
+        img.on('pointerover', () => { boxContainer.setScale(1.07); });
+        img.on('pointerout',  () => { boxContainer.setScale(1.0); });
+        img.on('pointerdown', () => { this.openBox(boxContainer); });
 
         updateOccupancy(boxContainer);
         this.boxItems.push(boxContainer);
