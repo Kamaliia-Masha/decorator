@@ -1341,8 +1341,8 @@ const ITEM_SIZES = {
 // Wall items use fixed maxDim values (same as original rows=10 sizing).
 const ITEM_MAX_DIM = {
     // --- 1×1 floor items (smaller than 2×2) ---
-    'Chair':   135,   // dining chair
-    'Chair2':  135,   // office chair
+    'Chair':    90,   // dining chair
+    'Chair2':   90,   // office chair
     'Lamp':    145,   // tall floor lamp
     'Plant':   125,   // medium potted plant
     'Flower2':  55,   // small flower / vase
