@@ -1322,7 +1322,7 @@ const ITEM_SIZES = {
     'Chair': { w: 1, h: 1 },
     'Table': { w: 2, h: 1 },
     'Bed': { w: 2, h: 2 },
-    'Closet': { w: 2, h: 2 },
+    'Closet': { w: 2, h: 1 },
     'Window': { w: 2, h: 2 },
     'Mirror': { w: 1, h: 2 },
     'Table2': { w: 2, h: 2 },
@@ -1656,60 +1656,12 @@ class DesignScene extends Phaser.Scene {
         this._pendingPraise = [...(getCurrentCommission().requiredAdd || [])];
 
         window.addFurniture = (type) => {
-            let color = 0xcccccc;
-            if (type === 'Plant') color = 0x228B22;
-            if (type === 'Lamp') color = 0xFFFF00;
-            if (type === 'Table' || type === 'Table2') color = 0xdeb887;
-            if (type === 'Bed') color = 0xadd8e6;
-            if (type === 'Chair' || type === 'Chair2') color = 0x8b7355;
-            if (type === 'Closet') color = 0x6b4226;
-            if (type === 'Window') color = 0xadd8e6;
-            if (type === 'Mirror' || type === 'Mirror2') color = 0xe0e0e0;
-            if (type === 'Flower2') color = 0xff69b4;
-            if (type === 'Puffic2') color = 0x9370db;
-            if (type === 'Stairs2') color = 0x8b4513;
-            if (type === 'Clock2') color = 0xffd700;
-            if (type === 'Shelf2') color = 0xffa500;
-            
             const isWallItem = (type === 'Window' || type === 'Mirror' || type === 'Mirror2' || type === 'Clock2' || type === 'Shelf2');
-            const size = ITEM_SIZES[type] || { w: 2, h: 2 };
-            let pos;
-            if (type === 'Window') {
-                // The left wall's x-axis goes down-left in screen space, so a larger
-                // gridX pushes the window lower on screen.  Use x=2 (slightly off-center
-                // toward the room corner) so the window appears high up on the wall.
-                const surface = SURFACES['left'];
-                const prefX = 2;
-                const prefY = surface.rows - size.h; // max y = top of wall
-                // Try preferred spot first; then scan top-down for the next best slot.
-                if (this.isSpaceFree(prefX, prefY, size.w, size.h, null, 'left')) {
-                    pos = { gridX: prefX, gridY: prefY, wallSide: 'left' };
-                } else {
-                    // Fallback: highest free position on either wall
-                    pos = null;
-                    outer: for (const side of ['left', 'right']) {
-                        const s = SURFACES[side];
-                        for (let y = s.rows - size.h; y >= 0; y--) {
-                            for (let x = 0; x <= s.cols - size.w; x++) {
-                                if (this.isSpaceFree(x, y, size.w, size.h, null, side)) {
-                                    pos = { gridX: x, gridY: y, wallSide: side };
-                                    break outer;
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                pos = isWallItem ? this.findFreeWallSpace(size.w, size.h) : this.findFreeSpace(size.w, size.h);
-            }
-            
+            const boxSize = isWallItem ? { w: 1, h: 1 } : (ITEM_SIZES[type] || { w: 1, h: 1 });
+            const pos = this.findEdgeFreeSpace(boxSize.w, boxSize.h);
+
             if (pos) {
-                this.addFurnitureObject(pos.gridX, pos.gridY, type, color, pos.wallSide);
-                const idx = this._pendingPraise.indexOf(type);
-                if (idx !== -1) {
-                    this._pendingPraise.splice(idx, 1);
-                    this.showPraiseMessage(type);
-                }
+                this.addBoxObject(pos.gridX, pos.gridY, type);
             } else {
                 alert("No free space!");
             }
@@ -2076,6 +2028,9 @@ class DesignScene extends Phaser.Scene {
             if (name === 'Table2') {
                 shiftX = 0.5;
                 shiftY = 0.5;
+            } else if (name === 'Table') {
+                shiftX = size.w - 0.5;
+                shiftY = size.h;
             }
             const centerPos = this.isoToScreen(gridX + shiftX, gridY + shiftY, wallSide);
             containerX = centerPos.x;
@@ -2212,7 +2167,7 @@ class DesignScene extends Phaser.Scene {
         
         container.addAt(visual, 0);
         // Flower2: bottom-aligned so the plant base sits at the cell's front corner
-        visual.setOrigin(0.5, name === 'Flower2' ? 1 : name === 'Closet' ? 0.82 : 0.5);
+        visual.setOrigin(0.5, name === 'Flower2' ? 1 : name === 'Table' ? 0.82 : name === 'Closet' ? 0.82 : 0.5);
         visual.y = 0;
         // Pixel-perfect hit detection: transparent pixels are ignored, so clicking on the
         // visible part of any item selects exactly that item even if images overlap.
@@ -2290,6 +2245,9 @@ class DesignScene extends Phaser.Scene {
                     if (container.name === 'Table2') {
                         shiftX = 0.5;
                         shiftY = 0.5;
+                    } else if (container.name === 'Table') {
+                        shiftX = container.gridW - 0.5;
+                        shiftY = container.gridH;
                     }
                     const centerPos = this.isoToScreen(iso.gridX + shiftX, iso.gridY + shiftY, iso.wallSide);
                     finalX = centerPos.x;
@@ -2348,9 +2306,12 @@ class DesignScene extends Phaser.Scene {
             } else if (container.gridW > 1 || container.gridH > 1) {
                 let shiftX = container.gridW / 2;
                 let shiftY = container.gridH / 2;
-                if (container.name === 'Table' || container.name === 'Table2') {
+                if (container.name === 'Table2') {
                     shiftX = 0.5;
                     shiftY = 0.5;
+                } else if (container.name === 'Table') {
+                    shiftX = container.gridW - 0.5;
+                    shiftY = container.gridH;
                 }
                 const centerPos = this.isoToScreen(container.gridX + shiftX, container.gridY + shiftY, container.wallSide);
                 finalX = centerPos.x;
@@ -2519,6 +2480,11 @@ class DesignScene extends Phaser.Scene {
                             }
                         } else {
                             this.addFurnitureObject(gridX, gridY, boxContents, 0xffffff, null);
+                        }
+                        const praiseIdx = this._pendingPraise.indexOf(boxContents);
+                        if (praiseIdx !== -1) {
+                            this._pendingPraise.splice(praiseIdx, 1);
+                            this.showPraiseMessage(boxContents);
                         }
                     }
                 });
