@@ -1355,7 +1355,7 @@ const ITEM_MAX_DIM = {
     'Closet':  115,   // wardrobe — fallback, per-view overrides preferred
     // --- wall items (fixed to original visual size, independent of grid rows) ---
     // 'Window' intentionally omitted — auto-sized to fit its 3×2 grid footprint
-    'Mirror':  68,
+    'Mirror':  58,   // left-anchored (origin.x=0.35); grows right/up/down within indicator
     'Mirror2': 68,
     'Clock2':  59,
     'Shelf2':  58,
@@ -2167,8 +2167,10 @@ class DesignScene extends Phaser.Scene {
         }
         
         container.addAt(visual, 0);
-        // Flower2: bottom-aligned so the plant base sits at the cell's front corner
-        visual.setOrigin(0.5, name === 'Flower2' ? 1 : name === 'Table' ? 0.82 : name === 'Closet' ? 0.79 : 0.5);
+        // Flower2: bottom-aligned; Mirror: left-anchored so growth goes right/up/down
+        const originX = name === 'Mirror' ? 0.38 : 0.5;
+        const originY = name === 'Flower2' ? 1 : name === 'Table' ? 0.82 : name === 'Closet' ? 0.79 : 0.5;
+        visual.setOrigin(originX, originY);
         visual.y = 0;
         // Pixel-perfect hit detection: transparent pixels are ignored, so clicking on the
         // visible part of any item selects exactly that item even if images overlap.
