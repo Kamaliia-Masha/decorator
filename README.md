@@ -5,7 +5,7 @@ The project is a 2D decorator game powered by the **Phaser 3** engine. You play 
 ## 🌐 Play Online
 
 The game is deployed and available at:
-**https://zingy-horse-f22bb2.netlify.app/**
+**https://brilliant-haupia-4362c3.netlify.app/**
 
 ---
 
