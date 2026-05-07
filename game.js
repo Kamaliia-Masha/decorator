@@ -77,133 +77,138 @@ const ITEM_VIBES = {
     'Stairs2': ['vintage', 'fancy'],
     'Mirror2': ['fancy', 'modern'],
     'Clock2': ['vintage', 'fancy'],
-    'Shelf2': ['storage', 'fancy', 'modern']
+    'Shelf2': ['storage', 'fancy', 'modern'],
+    // Old / battered furniture that customers want gone — no positive vibes
+    'BedOld': ['old', 'shabby'],
+    'ChairOld': ['old', 'shabby'],
+    'MirrorOld': ['old', 'shabby'],
+    'PlantOld': ['old', 'shabby']
 };
 
 const COMMISSIONS = [
     {
         residentName: "Kamaliia",
         residentType: "rabbit",
-        brief: "Hi! I need a cozy studio. Can you add a plant and a lamp? And please, throw out this old chair, it annoys me!",
+        brief: "Hi! I want a cozy studio. Add a plant and a lamp! And please, throw out that battered old chair — it's been here forever and it's killing the vibe.",
         requiredAdd: ["Plant", "Lamp"],
-        requiredRemove: ["Chair"],
+        requiredRemove: ["ChairOld"],
         requiredVibe: "cozy",
         reward: 80
     },
     {
         residentName: "Mia",
         residentType: "rabbit",
-        brief: "Just a small update — add a plant and move things around. Oh, and you can remove the mirror, it's too fancy for me.",
+        brief: "Could you make this place feel a bit greener? Just add a plant. Oh — and toss that creepy old mirror, it freaks me out every morning.",
         requiredAdd: ["Plant"],
-        requiredRemove: ["Mirror"],
+        requiredRemove: ["MirrorOld"],
         requiredVibe: "nature",
         reward: 80
     },
     {
         residentName: "Aleksey",
         residentType: "bear",
-        brief: "I want a workspace! Put in a table and a chair. And take away that plant, I have an allergy to it. Also, that bed is too old!",
+        brief: "I want a real workspace! Bring a table and a chair. And please get rid of that dying old plant AND that ancient old bed — I want to focus, not nap.",
         requiredAdd: ["Table", "Chair"],
-        requiredRemove: ["Plant", "Bed"],
+        requiredRemove: ["PlantOld", "BedOld"],
         requiredVibe: "office",
         reward: 100
     },
     {
         residentName: "Elena",
         residentType: "cat",
-        brief: "I need more light! Add a lamp and a window. I don't need the old closet anymore.",
+        brief: "I need more light! Add a lamp and a window. And please — that creepy old mirror has to go, I keep getting startled by my own reflection.",
         requiredAdd: ["Lamp", "Window"],
-        requiredRemove: ["Closet"],
+        requiredRemove: ["MirrorOld"],
         requiredVibe: "light",
         reward: 100
     },
     {
         residentName: "Luka",
         residentType: "dog",
-        brief: "I finally got a real bed! Please put it in and add a reading lamp. The old chair takes up too much space.",
+        brief: "I finally got a real bed! Please put it in and add a reading lamp. Oh, and that shabby old chair — it's seen better days, throw it out!",
         requiredAdd: ["Lamp", "Bed"],
-        requiredRemove: ["Chair"],
+        requiredRemove: ["ChairOld"],
         requiredVibe: "relax",
         reward: 100
     },
     {
         residentName: "Nina",
         residentType: "cat",
-        brief: "I want a strict and practical look. Add a table and a closet. And get rid of that plant — I always forget to water it.",
+        brief: "I want something practical and tidy. Add a table and a closet. And please remove that wilted old plant — I keep forgetting to water it.",
         requiredAdd: ["Table", "Closet"],
-        requiredRemove: ["Plant"],
+        requiredRemove: ["PlantOld"],
         requiredVibe: "basic",
         reward: 100
     },
     {
         residentName: "Dmitry",
         residentType: "bear",
-        brief: "Make it a room for relaxation! A bed and a mirror are exactly what I need. And throw out this table.",
+        brief: "Make this a space to relax! A bed and a mirror, that's all I need. The creaky old bed in there is killing my back — toss it out!",
         requiredAdd: ["Bed", "Mirror"],
-        requiredRemove: ["Table"],
+        requiredRemove: ["BedOld"],
         requiredVibe: "relax",
         reward: 120
     },
     {
         residentName: "Sophia",
         residentType: "rabbit",
-        brief: "I love plants! Put in two plants and a chair. I don't like the old lamp.",
+        brief: "I love plants! Put in two plants and a chair, please. And that sad old plant in the corner — it's beyond saving, please replace it.",
         requiredAdd: ["Plant", "Plant", "Chair"],
-        requiredRemove: ["Lamp"],
+        requiredRemove: ["PlantOld"],
         requiredVibe: "nature",
         reward: 120
     },
     {
         residentName: "Artem",
         residentType: "dog",
-        brief: "Create a calm, airy atmosphere for me. A mirror and a plant will do wonders. And please, remove the bed, I'm moving into a hammock outside!",
+        brief: "Create a calm, airy atmosphere for me. A mirror and a plant will do wonders. And please, remove that grumpy old bed — too many bad memories.",
         requiredAdd: ["Mirror", "Plant"],
-        requiredRemove: ["Bed"],
+        requiredRemove: ["BedOld"],
         requiredVibe: "fresh",
         reward: 120
     },
     {
         residentName: "Victor",
         residentType: "fox",
-        brief: "I need an office. A closet and a table are required. And remove the bed.",
+        brief: "I need a real office. A closet and a table, please. And that worn-out old plant — get rid of it, can't focus with it staring at me.",
         requiredAdd: ["Closet", "Table"],
-        requiredRemove: ["Bed"],
+        requiredRemove: ["PlantOld"],
         requiredVibe: "office",
         reward: 150
     },
     {
         residentName: "Zara",
         residentType: "cat",
-        brief: "I want it to be cozy and green! Add a bed, a plant, and a lamp. That table has to go — too much clutter.",
+        brief: "Cozy and green, that's the vibe! Add a bed, a plant, and a lamp. The shabby old bed and that dead old plant? Both gotta go.",
         requiredAdd: ["Bed", "Plant", "Lamp"],
-        requiredRemove: ["Table"],
+        requiredRemove: ["BedOld", "PlantOld"],
         requiredVibe: "cozy",
         reward: 150
     },
     {
         residentName: "Max",
         residentType: "fox",
-        brief: "Let's make everything as stylish as possible. A chair, a table AND a mirror. The closet is bulky and ugly — take it away.",
+        brief: "Make this place as stylish as possible. A chair, a table, AND a mirror. Also — that beat-up old chair AND that hideous old mirror? Both out, immediately.",
         requiredAdd: ["Chair", "Table", "Mirror"],
-        requiredRemove: ["Closet"],
+        requiredRemove: ["ChairOld", "MirrorOld"],
         requiredVibe: "fancy",
         reward: 150
     },
     {
         residentName: "Oink",
         residentType: "pig",
-        brief: "I love pink! Could you add a chair and a plant? Also, please remove that boring old table.",
+        brief: "I love pink and cute things! Add a chair and a plant. Also, please remove that grumpy old chair — it's giving the worst vibes.",
         requiredAdd: ["Chair", "Plant"],
-        requiredRemove: ["Table"],
+        requiredRemove: ["ChairOld"],
         requiredVibe: "cozy",
         reward: 150
     },
     {
         residentName: "Penny",
         residentType: "pig",
-        brief: "I need a place to study. Add a table and a lamp. The old chair is just in the way.",
+        brief: "I need a place to study. Add a table and a lamp. And that wobbly old chair has got to leave — it's a hazard!",
         requiredAdd: ["Table", "Lamp"],
-        requiredRemove: ["Chair"],
+        requiredRemove: ["ChairOld"],
         requiredVibe: "office",
         reward: 180
     }
@@ -1332,7 +1337,12 @@ const ITEM_SIZES = {
     'Stairs2': { w: 1, h: 1 },
     'Mirror2': { w: 1, h: 2 },
     'Clock2': { w: 2, h: 1 },
-    'Shelf2': { w: 2, h: 1 }
+    'Shelf2': { w: 2, h: 1 },
+    // Old furniture mirrors the size of its modern counterpart
+    'BedOld': { w: 2, h: 2 },
+    'ChairOld': { w: 1, h: 1 },
+    'MirrorOld': { w: 1, h: 2 },
+    'PlantOld': { w: 1, h: 1 }
 };
 
 // Maximum visual dimension (pixels) per item.
@@ -1359,6 +1369,13 @@ const ITEM_MAX_DIM = {
     'Mirror2': 68,
     'Clock2':  59,
     'Shelf2':  58,
+    // Old furniture — match its modern counterpart's display size.
+    // PlantOld's PNG has almost no transparent padding (unlike plant.png),
+    // so its maxDim is smaller to visually match Plant in the room.
+    'ChairOld': 90,
+    'PlantOld': 80,
+    'BedOld':   150,
+    'MirrorOld': 58,
 };
 
 // Per-view overrides for items where left and right views should scale differently
@@ -1503,6 +1520,18 @@ class DesignScene extends Phaser.Scene {
             this.load.image(`${item.id}_left`, `assets/wall_items/left_view/${item.file}.png?v=${version}`);
         });
 
+        // Old / shabby furniture that comes pre-placed for the player to remove.
+        // Files live in assets/old_items/ with camelCase names; texture keys stay snake_case.
+        this.load.image('bedold_left',    `assets/old_items/bedOldLeft.png?v=${version}`);
+        this.load.image('bedold_right',   `assets/old_items/bedOldRight.png?v=${version}`);
+        this.load.image('chairold_left',  `assets/old_items/chairOldLeft.png?v=${version}`);
+        this.load.image('chairold_right', `assets/old_items/chairOldRight.png?v=${version}`);
+        this.load.image('mirrorold_left', `assets/old_items/mirrorOldLeft.png?v=${version}`);
+        this.load.image('mirrorold_right',`assets/old_items/mirrorOldRight.png?v=${version}`);
+        // PlantOld has only one view — reuse it for both left and right keys.
+        this.load.image('plantold_left',  `assets/old_items/plantOld.png?v=${version}`);
+        this.load.image('plantold_right', `assets/old_items/plantOld.png?v=${version}`);
+
         this.load.image('box', `assets/box.png?v=${version}`);
     }
 
@@ -1565,26 +1594,31 @@ class DesignScene extends Phaser.Scene {
         this.cameras.main.centerOn(400, 250);
 
 
-        // Initial placement of items as boxes (Required to remove items)
+        // Initial placement of OLD furniture (the items the customer wants thrown out).
+        // The room comes pre-cluttered with these — player removes them via double-click.
         const commission = getCurrentCommission();
         if (commission.requiredRemove && Array.isArray(commission.requiredRemove)) {
             commission.requiredRemove.forEach(itemName => {
-                const isWallContent = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shelf2';
-                const boxSize = isWallContent ? { w: 1, h: 1 } : (ITEM_SIZES[itemName] || { w: 1, h: 1 });
-                const freeSpace = this.findEdgeFreeSpace(boxSize.w, boxSize.h);
-                if (freeSpace) {
-                    this.addBoxObject(freeSpace.gridX, freeSpace.gridY, itemName);
+                const isWallItem = itemName === 'MirrorOld' || itemName === 'Mirror' || itemName === 'Mirror2'
+                    || itemName === 'Window' || itemName === 'Clock2' || itemName === 'Shelf2';
+                const size = ITEM_SIZES[itemName] || { w: 1, h: 1 };
+                const pos = isWallItem
+                    ? this.findRandomFreeWallSpace(size.w, size.h)
+                    : this.findEdgeFreeSpace(size.w, size.h);
+                if (pos) {
+                    this.addFurnitureObject(pos.gridX, pos.gridY, itemName, 0xffffff, pos.wallSide || null);
                 }
             });
         }
 
-        // Add some random items as boxes to make the room look lived-in.
-        // Only include shop items (those with a "2" suffix) if the player has purchased them.
+        // Add a couple of random sealed boxes for that lived-in feel.
+        // Exclude shop items the player hasn't bought, and never include "Old" items
+        // (those are reserved for requiredRemove spawns above).
         const shopNames = new Set(SHOP_ITEMS.map(s => s.name));
         const availableNames = Object.keys(ITEM_SIZES).filter(
-            name => !shopNames.has(name) || purchasedItems.has(name)
+            name => !name.endsWith('Old') && (!shopNames.has(name) || purchasedItems.has(name))
         );
-        const randomItemsCount = Phaser.Math.Between(2, 4);
+        const randomItemsCount = Phaser.Math.Between(1, 3);
         for (let i = 0; i < randomItemsCount; i++) {
             const itemName = Phaser.Utils.Array.GetRandom(availableNames);
             const isWallContent = itemName === 'Window' || itemName === 'Mirror' || itemName === 'Mirror2' || itemName === 'Clock2' || itemName === 'Shelf2';
@@ -1682,8 +1716,12 @@ class DesignScene extends Phaser.Scene {
             const totalHard = commission.requiredAdd.length + commission.requiredRemove.length;
             let metHard = 0;
 
-            // Check Additions (exact match or includes)
-            const currentItemNames = furnitureItems.map(it => it.name.toLowerCase());
+            // Check Additions (exact match or includes).
+            // Old furniture (BedOld, ChairOld, …) must NOT count — its substring
+            // would otherwise satisfy generic "Plant" / "Bed" requirements.
+            const currentItemNames = furnitureItems
+                .filter(it => !it.name.endsWith('Old'))
+                .map(it => it.name.toLowerCase());
             commission.requiredAdd.forEach(req => {
                 const idx = currentItemNames.findIndex(name => name.includes(req.toLowerCase()));
                 if (idx !== -1) {
@@ -2012,7 +2050,7 @@ class DesignScene extends Phaser.Scene {
     }
 
     addFurnitureObject(gridX, gridY, name, color, wallSide = null) {
-        const isWallItem = (name === 'Window' || name === 'Mirror' || name === 'Mirror2' || name === 'Clock2' || name === 'Shelf2');
+        const isWallItem = (name === 'Window' || name === 'Mirror' || name === 'Mirror2' || name === 'Clock2' || name === 'Shelf2' || name === 'MirrorOld');
         const size = ITEM_SIZES[name] || { w: 2, h: 2 };
         const screenPos = this.isoToScreen(gridX, gridY, wallSide);
         // Center objects on their grid footprint
@@ -2167,8 +2205,8 @@ class DesignScene extends Phaser.Scene {
         }
         
         container.addAt(visual, 0);
-        // Flower2: bottom-aligned; Mirror: left-anchored so growth goes right/up/down
-        const originX = name === 'Mirror' ? 0.38 : 0.5;
+        // Flower2: bottom-aligned; Mirror / MirrorOld: left-anchored so growth goes right/up/down
+        const originX = (name === 'Mirror' || name === 'MirrorOld') ? 0.38 : 0.5;
         const originY = name === 'Flower2' ? 1 : name === 'Table' ? 0.82 : name === 'Closet' ? 0.79 : 0.5;
         visual.setOrigin(originX, originY);
         visual.y = 0;
@@ -2183,7 +2221,7 @@ class DesignScene extends Phaser.Scene {
         }
 
         // Arrows for floor items
-        const isNoRotateItem = (name === 'Lamp' || name === 'Plant' || name === 'Flower2');
+        const isNoRotateItem = (name === 'Lamp' || name === 'Plant' || name === 'Flower2' || name === 'PlantOld');
 
         if (isNoRotateItem) {
             container.viewSide = 'right';
