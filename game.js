@@ -15,6 +15,180 @@ let tutorialShown = false; // Show controls tutorial once per game session
 let lastShopVisitCurrency = -1; // Currency at last shop visit; -1 = never visited
 let currentMusicKey = null; // Key of the currently playing track (null = off)
 
+// Web Audio SFX — synthesized in-code, no asset files.
+// AudioContext is lazily created on first use because browsers block it until a user gesture.
+const SFX = (() => {
+    let ctx = null;
+    const getCtx = () => {
+        if (!ctx) {
+            const Ctor = window.AudioContext || window.webkitAudioContext;
+            if (!Ctor) return null;
+            ctx = new Ctor();
+        }
+        if (ctx.state === 'suspended') ctx.resume();
+        return ctx;
+    };
+
+    // Cardboard / paper tear for opening a box: noise with irregular crackle bursts,
+    // bandpass-filtered to give it that fibrous "ripping" character, plus a soft thump at impact.
+    const playBoxOpen = () => {
+        const ac = getCtx(); if (!ac) return;
+        const t0 = ac.currentTime;
+        const dur = 0.42;
+        const sr = ac.sampleRate;
+        const samples = Math.floor(sr * dur);
+        const buffer = ac.createBuffer(1, samples, sr);
+        const data = buffer.getChannelData(0);
+        // Random crackle amplitude that jumps to new targets occasionally — mimics the
+        // uneven micro-bursts of fibers giving way during a tear.
+        let crackle = 0, target = 0.5;
+        for (let i = 0; i < samples; i++) {
+            if (Math.random() < 0.025) target = 0.25 + Math.random() * 0.75;
+            crackle += (target - crackle) * 0.35;
+            const envT = i / samples;
+            // Quick attack, long-ish ragged decay.
+            const env = envT < 0.05 ? envT / 0.05 : Math.pow(1 - (envT - 0.05) / 0.95, 1.4);
+            data[i] = (Math.random() * 2 - 1) * crackle * env;
+        }
+        const noise = ac.createBufferSource();
+        noise.buffer = buffer;
+        const bandpass = ac.createBiquadFilter();
+        bandpass.type = 'bandpass';
+        bandpass.Q.value = 1.2;
+        bandpass.frequency.setValueAtTime(2400, t0);
+        bandpass.frequency.exponentialRampToValueAtTime(1400, t0 + dur);
+        const noiseGain = ac.createGain();
+        noiseGain.gain.value = 0.55;
+        noise.connect(bandpass).connect(noiseGain).connect(ac.destination);
+        noise.start(t0);
+        noise.stop(t0 + dur);
+
+        // Subtle low thump at the very start — the "first rip" impact.
+        const thump = ac.createOscillator();
+        const thumpGain = ac.createGain();
+        thump.type = 'sine';
+        thump.frequency.setValueAtTime(140, t0);
+        thump.frequency.exponentialRampToValueAtTime(70, t0 + 0.08);
+        thumpGain.gain.setValueAtTime(0.0001, t0);
+        thumpGain.gain.exponentialRampToValueAtTime(0.25, t0 + 0.005);
+        thumpGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.1);
+        thump.connect(thumpGain).connect(ac.destination);
+        thump.start(t0);
+        thump.stop(t0 + 0.12);
+    };
+
+    // Soft "poof" for removing an item: descending tone + brief noise puff.
+    const playRemove = () => {
+        const ac = getCtx(); if (!ac) return;
+        const t0 = ac.currentTime;
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(620, t0);
+        osc.frequency.exponentialRampToValueAtTime(180, t0 + 0.22);
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(0.25, t0 + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.24);
+        osc.connect(gain).connect(ac.destination);
+        osc.start(t0);
+        osc.stop(t0 + 0.26);
+
+        // Airy puff tail.
+        const dur = 0.18;
+        const sr = ac.sampleRate;
+        const buffer = ac.createBuffer(1, Math.floor(sr * dur), sr);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+            const env = Math.pow(1 - i / data.length, 2);
+            data[i] = (Math.random() * 2 - 1) * env;
+        }
+        const noise = ac.createBufferSource();
+        noise.buffer = buffer;
+        const filter = ac.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.value = 1800;
+        const noiseGain = ac.createGain();
+        noiseGain.gain.value = 0.18;
+        noise.connect(filter).connect(noiseGain).connect(ac.destination);
+        noise.start(t0);
+        noise.stop(t0 + dur);
+    };
+
+    // Muted "thud" for placing a moved item.
+    const playMove = () => {
+        const ac = getCtx(); if (!ac) return;
+        const t0 = ac.currentTime;
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(180, t0);
+        osc.frequency.exponentialRampToValueAtTime(90, t0 + 0.12);
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(0.4, t0 + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+        osc.connect(gain).connect(ac.destination);
+        osc.start(t0);
+        osc.stop(t0 + 0.18);
+    };
+
+    // "Whoosh" for rotation: short bandpass-filtered noise burst.
+    const playRotate = () => {
+        const ac = getCtx(); if (!ac) return;
+        const t0 = ac.currentTime;
+        const dur = 0.18;
+        const buffer = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        const noise = ac.createBufferSource();
+        noise.buffer = buffer;
+        const filter = ac.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.Q.value = 4;
+        filter.frequency.setValueAtTime(900, t0);
+        filter.frequency.exponentialRampToValueAtTime(2200, t0 + dur);
+        const gain = ac.createGain();
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        noise.connect(filter).connect(gain).connect(ac.destination);
+        noise.start(t0);
+        noise.stop(t0 + dur);
+    };
+
+    // Cheerful "ta-da" for a newly placed item: quick ascending glide + sparkly major-third chime.
+    const playNewItem = () => {
+        const ac = getCtx(); if (!ac) return;
+        const t0 = ac.currentTime;
+
+        // Main glide up.
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(520, t0);
+        osc.frequency.exponentialRampToValueAtTime(980, t0 + 0.18);
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(0.3, t0 + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+        osc.connect(gain).connect(ac.destination);
+        osc.start(t0);
+        osc.stop(t0 + 0.3);
+
+        // Sparkly chime a third above, kicks in slightly later.
+        const chime = ac.createOscillator();
+        const chimeGain = ac.createGain();
+        chime.type = 'sine';
+        chime.frequency.setValueAtTime(1320, t0 + 0.06);
+        chimeGain.gain.setValueAtTime(0.0001, t0 + 0.06);
+        chimeGain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.08);
+        chimeGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32);
+        chime.connect(chimeGain).connect(ac.destination);
+        chime.start(t0 + 0.06);
+        chime.stop(t0 + 0.34);
+    };
+
+    return { playBoxOpen, playMove, playRotate, playRemove, playNewItem };
+})();
+
 function updateCurrencyUI(showReputation = true, isDesignMode = false) {
     const display = document.getElementById('currency-display');
     const reputationText = document.getElementById('reputation-text');
@@ -1697,6 +1871,7 @@ class DesignScene extends Phaser.Scene {
 
             if (pos) {
                 this.addBoxObject(pos.gridX, pos.gridY, type);
+                SFX.playNewItem();
             } else {
                 alert("No free space!");
             }
@@ -2323,6 +2498,10 @@ class DesignScene extends Phaser.Scene {
 
         visual.on('dragend', () => {
             if (container.targetIsValid) {
+                const moved = container.targetGridX !== container.originalGridX
+                    || container.targetGridY !== container.originalGridY
+                    || container.targetWallSide !== container.originalWallSide;
+                if (moved) SFX.playMove();
                 container.gridX = container.targetGridX;
                 container.gridY = container.targetGridY;
                 container.wallSide = container.targetWallSide;
@@ -2388,6 +2567,7 @@ class DesignScene extends Phaser.Scene {
                     const canFit = newW === newH ||
                         this.isSpaceFree(container.gridX, container.gridY, newW, newH, null, container.wallSide || null);
                     if (canFit) {
+                        SFX.playRotate();
                         container.gridW = newW;
                         container.gridH = newH;
                         container.viewSide = container.viewSide === 'right' ? 'left' : 'right';
@@ -2428,6 +2608,7 @@ class DesignScene extends Phaser.Scene {
     }
 
     removeObject(container) {
+        SFX.playRemove();
         // Clear place in matrix before deletion
         updateOccupancy(container, true);
 
@@ -2500,6 +2681,7 @@ class DesignScene extends Phaser.Scene {
 
     openBox(boxContainer) {
         if (boxContainer.hitZone) boxContainer.hitZone.disableInteractive();
+        SFX.playBoxOpen();
 
         const idx = this.boxItems.indexOf(boxContainer);
         if (idx !== -1) this.boxItems.splice(idx, 1);
