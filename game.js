@@ -435,6 +435,10 @@ const SHOP_ITEMS = [
     { name: 'Shelf2', price: 20, category: 'walls', texture: 'shelf2', displayName: 'Shelf 2' }
 ];
 
+// Resident types that have a dedicated "angry" portrait in assets/customers_angry/.
+// Other species fall back to a grey tint when the player gets a low score.
+const RESIDENTS_WITH_ANGRY = ['rabbit', 'bear', 'cat', 'dog', 'fox', 'pig'];
+
 // Per-item placement cost. Drives the commission budget. Old/pre-placed items have
 // no entry, so removing them never refunds and they never cost anything.
 const ITEM_PRICES = {
@@ -985,6 +989,12 @@ class BriefingScene extends Phaser.Scene {
         this.load.image('fox', 'assets/custumers/fox.png?v=' + version);
         this.load.image('pig', 'assets/custumers/pig.png?v=' + version);
 
+        // Angry portraits — used when score < 50. Only species that have an asset get loaded;
+        // the rest fall back to the grey-tint treatment.
+        RESIDENTS_WITH_ANGRY.forEach(type => {
+            this.load.image(`${type}_angry`, `assets/customers_angry/${type}.png?v=${version}`);
+        });
+
         // Load all shop assets from right_view (per requirements)
         this.load.image('table2', 'assets/floor_items/right_view/table2.png?v=' + version);
         this.load.image('chair2', 'assets/floor_items/right_view/chair2.png?v=' + version);
@@ -1062,17 +1072,21 @@ class BriefingScene extends Phaser.Scene {
         
         // Using resident-specific sprite
         const residentTexture = commission.residentType || 'rabbit';
-        const resident = this.add.image(0, 40, residentTexture); 
-        
+        const isAngry = this.result && this.result.score < 50;
+        const angryKey = `${residentTexture}_angry`;
+        const useAngrySprite = isAngry && this.textures.exists(angryKey);
+        const resident = this.add.image(0, 40, useAngrySprite ? angryKey : residentTexture);
+
         // Scale adjustment: dog, pig, fox need to be smaller (0.3 instead of 0.4)
         if (residentTexture === 'dog' || residentTexture === 'pig' || residentTexture === 'fox') {
             resident.setScale(0.3);
         } else {
             resident.setScale(0.6);
         }
-        
-        if (this.result && this.result.score < 50) {
-            resident.setTint(0x888888); 
+
+        // Fallback for species without a dedicated angry portrait — keep the old grey tint.
+        if (isAngry && !useAngrySprite) {
+            resident.setTint(0x888888);
         }
         
         characterContainer.add([resident]);
