@@ -14,6 +14,7 @@ let isEconomyAnimationPlayed = false; // Persistent state for reward animation
 let tutorialShown = false; // Show controls tutorial once per game session
 let lastShopVisitCurrency = -1; // Currency at last shop visit; -1 = never visited
 let currentMusicKey = null; // Key of the currently playing track (null = off)
+let commissionBudget = 0; // Budget the current client provided for this commission. Resets per commission.
 
 // Web Audio SFX — synthesized in-code, no asset files.
 // AudioContext is lazily created on first use because browsers block it until a user gesture.
@@ -212,6 +213,22 @@ function updateCurrencyUI(showReputation = true, isDesignMode = false) {
     }
 }
 
+function updateBudgetUI(visible = true) {
+    const wrap = document.getElementById('budget-display');
+    const el = document.getElementById('budget-text');
+    if (wrap) wrap.style.display = visible ? 'block' : 'none';
+    if (el) el.innerText = `Budget: ${commissionBudget}`;
+}
+
+function flashFeedback(text, ms = 1800) {
+    const el = document.getElementById('feedback');
+    if (!el) return;
+    el.innerText = text;
+    el.style.display = 'block';
+    clearTimeout(flashFeedback._t);
+    flashFeedback._t = setTimeout(() => { el.style.display = 'none'; }, ms);
+}
+
 // Room template dimensions (obtained via `file` or `identify`)
 const ROOM_DIMENSIONS = [
     { w: 1506, h: 1022 }, // emptyRoomTemplate.png
@@ -267,7 +284,8 @@ const COMMISSIONS = [
         requiredAdd: ["Plant", "Lamp"],
         requiredRemove: ["ChairOld"],
         requiredVibe: "cozy",
-        reward: 80
+        reward: 80,
+        budget: 60
     },
     {
         residentName: "Mia",
@@ -276,7 +294,8 @@ const COMMISSIONS = [
         requiredAdd: ["Plant"],
         requiredRemove: ["MirrorOld"],
         requiredVibe: "nature",
-        reward: 80
+        reward: 80,
+        budget: 45
     },
     {
         residentName: "Aleksey",
@@ -285,7 +304,8 @@ const COMMISSIONS = [
         requiredAdd: ["Table", "Chair"],
         requiredRemove: ["PlantOld", "BedOld"],
         requiredVibe: "office",
-        reward: 100
+        reward: 100,
+        budget: 70
     },
     {
         residentName: "Elena",
@@ -294,7 +314,8 @@ const COMMISSIONS = [
         requiredAdd: ["Lamp", "Window"],
         requiredRemove: ["MirrorOld"],
         requiredVibe: "light",
-        reward: 100
+        reward: 100,
+        budget: 70
     },
     {
         residentName: "Luka",
@@ -303,7 +324,8 @@ const COMMISSIONS = [
         requiredAdd: ["Lamp", "Bed"],
         requiredRemove: ["ChairOld"],
         requiredVibe: "relax",
-        reward: 100
+        reward: 100,
+        budget: 80
     },
     {
         residentName: "Nina",
@@ -312,7 +334,8 @@ const COMMISSIONS = [
         requiredAdd: ["Table", "Closet"],
         requiredRemove: ["PlantOld"],
         requiredVibe: "basic",
-        reward: 100
+        reward: 100,
+        budget: 85
     },
     {
         residentName: "Dmitry",
@@ -321,7 +344,8 @@ const COMMISSIONS = [
         requiredAdd: ["Bed", "Mirror"],
         requiredRemove: ["BedOld"],
         requiredVibe: "relax",
-        reward: 120
+        reward: 120,
+        budget: 85
     },
     {
         residentName: "Sophia",
@@ -330,7 +354,8 @@ const COMMISSIONS = [
         requiredAdd: ["Plant", "Plant", "Chair"],
         requiredRemove: ["PlantOld"],
         requiredVibe: "nature",
-        reward: 120
+        reward: 120,
+        budget: 75
     },
     {
         residentName: "Artem",
@@ -339,7 +364,8 @@ const COMMISSIONS = [
         requiredAdd: ["Mirror", "Plant"],
         requiredRemove: ["BedOld"],
         requiredVibe: "fresh",
-        reward: 120
+        reward: 120,
+        budget: 65
     },
     {
         residentName: "Victor",
@@ -348,7 +374,8 @@ const COMMISSIONS = [
         requiredAdd: ["Closet", "Table"],
         requiredRemove: ["PlantOld"],
         requiredVibe: "office",
-        reward: 150
+        reward: 150,
+        budget: 85
     },
     {
         residentName: "Zara",
@@ -357,7 +384,8 @@ const COMMISSIONS = [
         requiredAdd: ["Bed", "Plant", "Lamp"],
         requiredRemove: ["BedOld", "PlantOld"],
         requiredVibe: "cozy",
-        reward: 150
+        reward: 150,
+        budget: 95
     },
     {
         residentName: "Max",
@@ -366,7 +394,8 @@ const COMMISSIONS = [
         requiredAdd: ["Chair", "Table", "Mirror"],
         requiredRemove: ["ChairOld", "MirrorOld"],
         requiredVibe: "fancy",
-        reward: 150
+        reward: 150,
+        budget: 90
     },
     {
         residentName: "Oink",
@@ -375,7 +404,8 @@ const COMMISSIONS = [
         requiredAdd: ["Chair", "Plant"],
         requiredRemove: ["ChairOld"],
         requiredVibe: "cozy",
-        reward: 150
+        reward: 150,
+        budget: 60
     },
     {
         residentName: "Penny",
@@ -384,7 +414,8 @@ const COMMISSIONS = [
         requiredAdd: ["Table", "Lamp"],
         requiredRemove: ["ChairOld"],
         requiredVibe: "office",
-        reward: 180
+        reward: 180,
+        budget: 70
     }
 ];
 
@@ -403,6 +434,27 @@ const SHOP_ITEMS = [
     { name: 'Clock2', price: 20, category: 'decor', texture: 'clock2', displayName: 'Clock 2' },
     { name: 'Shelf2', price: 20, category: 'walls', texture: 'shelf2', displayName: 'Shelf 2' }
 ];
+
+// Per-item placement cost. Drives the commission budget. Old/pre-placed items have
+// no entry, so removing them never refunds and they never cost anything.
+const ITEM_PRICES = {
+    'Plant':   15,
+    'Lamp':    15,
+    'Chair':   15,
+    'Table':   25,
+    'Bed':     35,
+    'Closet':  30,
+    'Window':  25,
+    'Mirror':  20,
+    'Table2':  30,
+    'Chair2':  30,
+    'Flower2': 30,
+    'Puffic2': 30,
+    'Stairs2': 30,
+    'Mirror2': 20,
+    'Clock2':  20,
+    'Shelf2':  20
+};
 
 const MUSIC_TRACKS = [
     { key: 'music_cozy',   file: 'assets/music/cozy.mp3',   label: 'Cozy Evening' },
@@ -596,6 +648,7 @@ class RoomSelectScene extends Phaser.Scene {
             document.getElementById('ui-panel').style.display = 'none';
         }
         updateCurrencyUI(true);
+        updateBudgetUI(false);
 
         // Background
         const bg = this.add.image(400, 250, 'agency_bg');
@@ -704,6 +757,7 @@ class ShopScene extends Phaser.Scene {
     create() {
         lastShopVisitCurrency = currency;
         updateCurrencyUI(true);
+        updateBudgetUI(false);
         // Build smooth 140px canvas thumbnails for shop items before any images
         // are created, so the very first render is already anti-aliased.
         // addCanvas() works in Phaser 3.60 without touching GL internals.
@@ -948,6 +1002,7 @@ class BriefingScene extends Phaser.Scene {
 
     create() {
         console.log('[BriefingScene] create() start');
+        updateBudgetUI(false);
         // Defer prescaling until after first render so loading isn't blocked.
         const sceneRef = this;
         setTimeout(() => {
@@ -1047,7 +1102,10 @@ class BriefingScene extends Phaser.Scene {
         bubble.strokePath();
 
         let message = commission.brief;
-        
+        if (commission.budget && !this.result) {
+            message += `\n\nMy budget for this is ${commission.budget} coins.`;
+        }
+
         if (this.result) {
             const score = Math.round(this.result.score);
             const statusText = this.result.score >= 80 ? "EXCELLENT!" : (this.result.score >= 50 ? "GOOD" : "TERRIBLE...");
@@ -1744,18 +1802,22 @@ class DesignScene extends Phaser.Scene {
         if (document.getElementById('ui-panel')) {
             document.getElementById('ui-panel').style.display = 'block';
             updateCurrencyUI(false, true);
-            
+
             // Update brief
             const commission = getCurrentCommission();
             document.getElementById('resident-name').innerText = commission.residentName;
             document.getElementById('brief-text').innerText = commission.brief;
 
+            // Initialise the per-commission budget BEFORE rendering inventory buttons,
+            // otherwise updateInventoryUI sees a stale 0 budget and disables every "+" button.
+            commissionBudget = commission.budget || 0;
+            updateBudgetUI();
 
             // Set room background via CSS for 100% stability
             const container = document.getElementById('game-container');
             const roomImg = ROOM_TEMPLATES[selectedRoom];
             container.style.backgroundImage = `url('${roomImg}?v=${Date.now()}')`;
-            
+
             // Dynamic inventory button list update
             this.updateInventoryUI();
         }
@@ -1867,11 +1929,20 @@ class DesignScene extends Phaser.Scene {
         window.addFurniture = (type) => {
             const isWallItem = (type === 'Window' || type === 'Mirror' || type === 'Mirror2' || type === 'Clock2' || type === 'Shelf2');
             const boxSize = isWallItem ? { w: 1, h: 1 } : (ITEM_SIZES[type] || { w: 1, h: 1 });
-            const pos = this.findEdgeFreeSpace(boxSize.w, boxSize.h);
+            const price = ITEM_PRICES[type] || 0;
 
+            if (price > commissionBudget) {
+                flashFeedback(`Not enough budget for ${type}!`);
+                return;
+            }
+
+            const pos = this.findEdgeFreeSpace(boxSize.w, boxSize.h);
             if (pos) {
-                this.addBoxObject(pos.gridX, pos.gridY, type);
+                commissionBudget -= price;
+                updateBudgetUI();
+                this.addBoxObject(pos.gridX, pos.gridY, type, 'player');
                 SFX.playNewItem();
+                this.updateInventoryUI();
             } else {
                 alert("No free space!");
             }
@@ -2190,36 +2261,31 @@ class DesignScene extends Phaser.Scene {
         invLeft.innerHTML = '<strong>Floor</strong>';
         invRight.innerHTML = '<strong>Walls</strong>';
 
-        allItems.forEach(type => {
-            const isWallItem = (type === 'Window' || type === 'Mirror' || type === 'Mirror2' || type === 'Clock2' || type === 'Shelf2');
-            
-            if (type === 'Flower2') {
-                // Flower2 is always a floor item
-                const btn = document.createElement('button');
-                btn.className = 'btn';
-                btn.innerText = `+ ${type}`;
-                btn.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    window.addFurniture(type);
-                };
-                invLeft.appendChild(btn);
-                return;
-            }
-            
+        const makeBtn = (type) => {
             const btn = document.createElement('button');
             btn.className = 'btn';
-            btn.innerText = `+ ${type}`;
+            const price = ITEM_PRICES[type] || 0;
+            btn.innerText = `+ ${type} (${price})`;
+            if (price > commissionBudget) {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            }
             btn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 window.addFurniture(type);
             };
+            return btn;
+        };
 
-            if (isWallItem) {
-                invRight.appendChild(btn);
-            } else {
+        allItems.forEach(type => {
+            const isWallItem = (type === 'Window' || type === 'Mirror' || type === 'Mirror2' || type === 'Clock2' || type === 'Shelf2');
+            const btn = makeBtn(type);
+            if (type === 'Flower2' || !isWallItem) {
                 invLeft.appendChild(btn);
+            } else {
+                invRight.appendChild(btn);
             }
         });
     }
@@ -2605,10 +2671,22 @@ class DesignScene extends Phaser.Scene {
         furnitureItems.push(container);
         // Add to matrix upon creation
         updateOccupancy(container);
+        return container;
     }
 
     removeObject(container) {
         SFX.playRemove();
+        // Refund the player's budget when they remove an item they themselves placed.
+        // Pre-placed OLD furniture and game-spawned "lived-in" boxes lack the paidBy flag,
+        // so removing them does not refund anything.
+        if (container.paidBy === 'player') {
+            const refund = ITEM_PRICES[container.name] || 0;
+            if (refund > 0) {
+                commissionBudget += refund;
+                updateBudgetUI();
+                this.updateInventoryUI();
+            }
+        }
         // Clear place in matrix before deletion
         updateOccupancy(container, true);
 
@@ -2623,7 +2701,7 @@ class DesignScene extends Phaser.Scene {
         container.destroy();
     }
 
-    addBoxObject(gridX, gridY, name) {
+    addBoxObject(gridX, gridY, name, paidBy = null) {
         const isWallContent = (name === 'Window' || name === 'Mirror' || name === 'Mirror2' || name === 'Clock2' || name === 'Shelf2');
         // Wall content boxes sit on the floor as a compact 1×1 box
         const size = isWallContent ? { w: 1, h: 1 } : (ITEM_SIZES[name] || { w: 1, h: 1 });
@@ -2656,6 +2734,7 @@ class DesignScene extends Phaser.Scene {
         boxContainer.isBox = true;
         boxContainer.boxContents = name;
         boxContainer.isWallContent = isWallContent;
+        boxContainer.paidBy = paidBy;
 
         const isLarge = size.w > 1 || size.h > 1;
         const targetSize = isLarge ? 160 : 120;
@@ -2687,7 +2766,7 @@ class DesignScene extends Phaser.Scene {
         if (idx !== -1) this.boxItems.splice(idx, 1);
         updateOccupancy(boxContainer, true);
 
-        const { gridX, gridY, boxContents, isWallContent } = boxContainer;
+        const { gridX, gridY, boxContents, isWallContent, paidBy } = boxContainer;
 
         this.tweens.add({
             targets: boxContainer,
@@ -2701,15 +2780,17 @@ class DesignScene extends Phaser.Scene {
                     duration: 200, ease: 'Power2',
                     onComplete: () => {
                         boxContainer.destroy();
+                        let placed = null;
                         if (isWallContent) {
                             const wallSize = ITEM_SIZES[boxContents] || { w: 1, h: 2 };
                             const wallSpace = this.findRandomFreeWallSpace(wallSize.w, wallSize.h);
                             if (wallSpace) {
-                                this.addFurnitureObject(wallSpace.gridX, wallSpace.gridY, boxContents, 0xffffff, wallSpace.wallSide);
+                                placed = this.addFurnitureObject(wallSpace.gridX, wallSpace.gridY, boxContents, 0xffffff, wallSpace.wallSide);
                             }
                         } else {
-                            this.addFurnitureObject(gridX, gridY, boxContents, 0xffffff, null);
+                            placed = this.addFurnitureObject(gridX, gridY, boxContents, 0xffffff, null);
                         }
+                        if (placed) placed.paidBy = paidBy;
                         const praiseIdx = this._pendingPraise.indexOf(boxContents);
                         if (praiseIdx !== -1) {
                             this._pendingPraise.splice(praiseIdx, 1);
