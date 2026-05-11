@@ -1077,9 +1077,20 @@ class BriefingScene extends Phaser.Scene {
         const useAngrySprite = isAngry && this.textures.exists(angryKey);
         const resident = this.add.image(0, 40, useAngrySprite ? angryKey : residentTexture);
 
-        // Scale adjustment: dog, pig, fox need to be smaller (0.3 instead of 0.4)
-        if (residentTexture === 'dog' || residentTexture === 'pig' || residentTexture === 'fox') {
-            resident.setScale(0.3);
+        // Angry PNG variants are all 408×612. Normal sprites differ:
+        //   – rabbit  408×612  (same aspect as angry)
+        //   – bear/cat 307×1024 (tall & narrow)
+        //   – dog/fox/pig 1024×1536 (same aspect as angry, just bigger)
+        // For dog/fox/pig we match the angry sprite to the normal's display height,
+        // since aspect ratios agree. For bear/cat/rabbit a fixed 0.6 keeps the
+        // angry sprite roughly the same on-screen size as the normal one;
+        // height-matching would inflate width for the tall-narrow bear/cat.
+        const isBigSpecies = (residentTexture === 'dog' || residentTexture === 'pig' || residentTexture === 'fox');
+        if (isBigSpecies) {
+            const normalTex = this.textures.get(residentTexture);
+            const normalH = (normalTex && normalTex.source[0] && normalTex.source[0].height) || 1536;
+            const targetH = normalH * 0.3;
+            if (resident.height > 0) resident.setScale(targetH / resident.height);
         } else {
             resident.setScale(0.6);
         }
