@@ -2181,6 +2181,31 @@ class DesignScene extends Phaser.Scene {
         return Phaser.Utils.Array.GetRandom(spaces);
     }
 
+    // Pick the free wall slot whose screen-space center is closest to the
+    // given floor cell. Used so unboxed wall items appear near the box.
+    findNearestFreeWallSpace(sizeW, sizeH, fromFloorX, fromFloorY) {
+        const fromScreen = SURFACES.floor.localToScreen(fromFloorX + 0.5, fromFloorY + 0.5);
+        let best = null;
+        let bestDist = Infinity;
+        for (const side of ['left', 'right']) {
+            const surface = SURFACES[side];
+            for (let y = 0; y <= surface.rows - sizeH; y++) {
+                for (let x = 0; x <= surface.cols - sizeW; x++) {
+                    if (!this.isSpaceFree(x, y, sizeW, sizeH, null, side)) continue;
+                    const center = surface.localToScreen(x + sizeW / 2, y + sizeH / 2);
+                    const dx = center.x - fromScreen.x;
+                    const dy = center.y - fromScreen.y;
+                    const d = dx * dx + dy * dy;
+                    if (d < bestDist) {
+                        bestDist = d;
+                        best = { gridX: x, gridY: y, wallSide: side };
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
     findRandomFreeSpace(sizeW, sizeH) {
         const spaces = [];
         const surface = SURFACES.floor;
@@ -2797,7 +2822,8 @@ class DesignScene extends Phaser.Scene {
                         let placed = null;
                         if (isWallContent) {
                             const wallSize = ITEM_SIZES[boxContents] || { w: 1, h: 2 };
-                            const wallSpace = this.findRandomFreeWallSpace(wallSize.w, wallSize.h);
+                            const wallSpace = this.findNearestFreeWallSpace(wallSize.w, wallSize.h, gridX, gridY)
+                                || this.findRandomFreeWallSpace(wallSize.w, wallSize.h);
                             if (wallSpace) {
                                 placed = this.addFurnitureObject(wallSpace.gridX, wallSpace.gridY, boxContents, 0xffffff, wallSpace.wallSide);
                             }
